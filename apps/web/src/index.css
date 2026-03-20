@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Prevent rubber-band scroll on iOS kiosk mode */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  height: 100dvh;
+  width: 100dvw;
+}
+
+/* Fullscreen root */
+#root {
+  height: 100dvh;
+  width: 100dvw;
+  overflow: hidden;
+}
+
+/* Editor form field utility */
+.input-field {
+  @apply w-full rounded border border-white/10 bg-surface px-2 py-1 text-xs text-white
+         placeholder-gray-600 focus:border-accent focus:outline-none;
+}
+
+/* Hide scrollbar while keeping scroll */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Hotspot state animations ──────────────────────────────────────────────── */
+
+@keyframes ha-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.06); }
+}
+
+@keyframes ha-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+
+@keyframes ha-fade {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.anim-pulse {
+  animation: ha-pulse 1.8s ease-in-out infinite;
+}
+
+.anim-blink {
+  animation: ha-blink 1s step-end infinite;
+}
+
+.anim-fade {
+  animation: ha-fade 2.5s ease-in-out infinite;
+}
+
+/* ── Screensaver / kiosk overlay ─────────────────────────────────────────── */
+
+@keyframes screensaver-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.screensaver-overlay {
+  animation: screensaver-fade-in 1.5s ease forwards;
+}

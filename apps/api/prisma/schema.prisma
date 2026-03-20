@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String    @map("password_hash")
+  role                UserRole  @default(viewer)
+  isEnabled           Boolean   @default(true) @map("is_enabled")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedAt            DateTime? @map("locked_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  revisions RevisionHistory[]
+
+  @@map("users")
+}
+
+model AllowedEmail {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      UserRole @default(viewer)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("allowed_emails")
+}
+
+enum UserRole {
+  admin
+  viewer
+}
+
+// ─── Dashboards ───────────────────────────────────────────────────────────────
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  floorplans Floorplan[]
+
+  @@map("dashboards")
+}
+
+// ─── Floorplans ───────────────────────────────────────────────────────────────
+
+model Floorplan {
+  id              String   @id @default(uuid())
+  dashboardId     String   @map("dashboard_id")
+  name            String
+  imageMode       String   @default("single") @map("image_mode")
+  imageStretch    Boolean  @default(true) @map("image_stretch")
+  imageAssetId    String?  @map("image_asset_id")
+  cycleImagesJson Json     @default("{}") @map("cycle_images_json")
+  width           Int      @default(1920)
+  height          Int      @default(1080)
+  backgroundColor String   @default("#1a1a1a") @map("background_color")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  dashboard  Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  imageAsset Asset?    @relation(fields: [imageAssetId], references: [id])
+  hotspots   Hotspot[]
+
+  @@map("floorplans")
+}
+
+// ─── Hotspots ─────────────────────────────────────────────────────────────────
+
+model Hotspot {
+  id          String      @id @default(uuid())
+  floorplanId String      @map("floorplan_id")
+  name        String
+  type        HotspotType
+  // Normalized position (0-1 range)
+  x           Float       @default(0.5)
+  y           Float       @default(0.5)
+  width       Float       @default(0.1)
+  height      Float       @default(0.1)
+  rotation    Float       @default(0)
+  zIndex      Int         @default(0) @map("z_index")
+  entityId    String?     @map("entity_id")
+  // Type-specific configuration stored as JSON
+  configJson  Json        @default("{}") @map("config_json")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  floorplan  Floorplan          @relation(fields: [floorplanId], references: [id], onDelete: Cascade)
+  stateRules HotspotStateRule[]
+
+  @@map("hotspots")
+}
+
+enum HotspotType {
+  action
+  text
+  state_image
+  state_icon
+  badge
+  scene
+  custom
+}
+
+// ─── Hotspot State Rules ──────────────────────────────────────────────────────
+
+model HotspotStateRule {
+  id            String   @id @default(uuid())
+  hotspotId     String   @map("hotspot_id")
+  priority      Int      @default(0)
+  conditionType String   @map("condition_type")
+  conditionJson Json     @map("condition_json")
+  resultJson    Json     @map("result_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  hotspot Hotspot @relation(fields: [hotspotId], references: [id], onDelete: Cascade)
+
+  @@map("hotspot_state_rules")
+}
+
+// ─── Assets ───────────────────────────────────────────────────────────────────
+
+model Asset {
+  id           String   @id @default(uuid())
+  filename     String   @unique
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  storagePath  String   @map("storage_path")
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  floorplans Floorplan[]
+
+  @@map("assets")
+}
+
+// ─── App Settings ─────────────────────────────────────────────────────────────
+
+model AppSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  valueJson Json     @map("value_json")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
+// ─── Revision History ─────────────────────────────────────────────────────────
+
+model RevisionHistory {
+  id         String          @id @default(uuid())
+  entityType String          @map("entity_type")
+  entityId   String          @map("entity_id")
+  action     RevisionAction
+  beforeJson Json?           @map("before_json")
+  afterJson  Json?           @map("after_json")
+  userId     String?         @map("user_id")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("revision_history")
+}
+
+enum RevisionAction {
+  create
+  update
+  delete
+}
