@@ -7,6 +7,7 @@ import { StateIconHotspot } from "./renderers/StateIconHotspot.tsx";
 import { BadgeHotspot } from "./renderers/BadgeHotspot.tsx";
 import { SceneHotspot } from "./renderers/SceneHotspot.tsx";
 import { BlindHotspot } from "./renderers/BlindHotspot.tsx";
+import { BinsHotspot } from "./renderers/BinsHotspot.tsx";
 import { CustomHotspot } from "./renderers/CustomHotspot.tsx";
 
 /**
@@ -128,6 +129,19 @@ registerHotspotType({
     label: null,
     backgroundColor: null,
     groupEntityIds: [],
+  },
+});
+
+registerHotspotType({
+  type: "bins",
+  label: "Bin Day",
+  description: "Shows which bin to put out next based on a Home Assistant calendar",
+  icon: "🗑️",
+  Renderer: BinsHotspot,
+  defaultConfig: {
+    yellowBinAssetId: null,
+    redBinAssetId: null,
+    label: null,
   },
 });
 

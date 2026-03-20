@@ -1,4 +1,5 @@
 import { HaRestClient, HaWebSocketClient } from "@floorplan-ha/ha-client";
+import type { HaCalendarEvent } from "@floorplan-ha/ha-client";
 import type { EntityState, HaConnectionStatus } from "@floorplan-ha/shared";
 import { env } from "../lib/env.js";
 
@@ -113,6 +114,10 @@ class HaService {
 
   async getConfig(): Promise<{ latitude: number; longitude: number }> {
     return this.rest.getConfig();
+  }
+
+  async getCalendarEvents(entityId: string, start: string, end: string): Promise<HaCalendarEvent[]> {
+    return this.rest.getCalendarEvents(entityId, start, end);
   }
 
   async callService(

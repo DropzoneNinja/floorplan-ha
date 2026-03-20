@@ -93,6 +93,29 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  /** GET /api/ha/calendar/:entityId/events — upcoming calendar events
+   * Query params: days (default 30) — how many days ahead to look */
+  app.get("/calendar/:entityId/events", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId } = request.params as { entityId: string };
+    const { days: daysStr } = (request.query as { days?: string });
+    const days = Math.min(Math.max(parseInt(daysStr ?? "30", 10) || 30, 1), 365);
+
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + days);
+
+    const ha = getHaService();
+    try {
+      const events = await ha.getCalendarEvents(entityId, start.toISOString(), end.toISOString());
+      return reply.send(events);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
   /** GET /api/ha/states — all current entity states from cache */
   app.get("/states", { preHandler: [requireAuth] }, async (_request, reply) => {
     const ha = getHaService();

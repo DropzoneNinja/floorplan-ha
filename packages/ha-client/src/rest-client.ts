@@ -1,5 +1,5 @@
 import type { EntityState } from "@floorplan-ha/shared";
-import type { HaClientConfig, HaServiceDomain, HaStateResponse } from "./types.js";
+import type { HaCalendarEvent, HaClientConfig, HaServiceDomain, HaStateResponse } from "./types.js";
 import { normalizeState, normalizeStates } from "./normalizer.js";
 
 /**
@@ -63,6 +63,13 @@ export class HaRestClient {
   /** Get Home Assistant configuration (includes home latitude/longitude). */
   async getConfig(): Promise<{ latitude: number; longitude: number; [key: string]: unknown }> {
     return this.request("/config");
+  }
+
+  /** Get calendar events for a given entity within a date range (ISO 8601 strings). */
+  async getCalendarEvents(entityId: string, start: string, end: string): Promise<HaCalendarEvent[]> {
+    return this.request<HaCalendarEvent[]>(
+      `/calendars/${entityId}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+    );
   }
 
   /** Call a Home Assistant service. */

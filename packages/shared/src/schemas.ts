@@ -89,6 +89,7 @@ export const HotspotTypeSchema = z.enum([
   "badge",
   "scene",
   "blind",
+  "bins",
   "custom",
 ]);
 

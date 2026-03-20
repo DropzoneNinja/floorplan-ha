@@ -96,6 +96,15 @@ export type HaClientEvent =
 
 export type HaClientEventListener = (event: HaClientEvent) => void;
 
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+
+export interface HaCalendarEvent {
+  summary: string;
+  start: { date?: string; dateTime?: string };
+  end: { date?: string; dateTime?: string };
+  description?: string;
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 export interface HaClientConfig {

@@ -322,7 +322,7 @@ function ResultEditor({
           <ColorPicker
             value={result.styleOverrides?.color ?? "#ffffff"}
             onChange={(v) =>
-              onChange({ ...result, styleOverrides: { ...result.styleOverrides, color: v } })
+              onChange({ ...result, styleOverrides: { ...result.styleOverrides, color: v ?? undefined } })
             }
           />
         </div>
@@ -333,7 +333,7 @@ function ResultEditor({
             onChange={(v) =>
               onChange({
                 ...result,
-                styleOverrides: { ...result.styleOverrides, backgroundColor: v },
+                styleOverrides: { ...result.styleOverrides, backgroundColor: v ?? undefined },
               })
             }
           />

@@ -7,6 +7,7 @@ import type {
   BadgeConfig,
   SceneConfig,
   BlindConfig,
+  BinsConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -596,10 +597,6 @@ function StyleTab({
   if (hotspotType === "action") {
     const c = config as ActionConfig;
     // Derive which background mode is active
-    const bgMode =
-      c.backgroundColor == null ? "default"
-      : c.backgroundColor === "transparent" ? "transparent"
-      : "custom";
     return (
       <div className="flex flex-col gap-3">
         <Field label="Icon">
@@ -617,35 +614,11 @@ function StyleTab({
           />
         </Field>
         <Field label="Background">
-          <div className="flex gap-1">
-            {(["default", "custom", "transparent"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => {
-                  if (mode === "default") onChange({ ...c, backgroundColor: null });
-                  else if (mode === "transparent") onChange({ ...c, backgroundColor: "transparent" });
-                  else onChange({ ...c, backgroundColor: "#ffffff" });
-                }}
-                className={[
-                  "flex-1 rounded border px-1.5 py-1 text-[11px] capitalize transition-colors",
-                  bgMode === mode
-                    ? "border-accent bg-accent/20 text-white"
-                    : "border-white/10 text-gray-400 hover:border-white/20 hover:text-white",
-                ].join(" ")}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-          {bgMode === "custom" && (
-            <input
-              type="color"
-              value={c.backgroundColor ?? "#ffffff"}
-              onChange={(e) => onChange({ ...c, backgroundColor: e.target.value })}
-              className="mt-1.5 h-8 w-full cursor-pointer rounded border border-white/10 bg-surface"
-            />
-          )}
+          <ColorPicker
+            value={c.backgroundColor}
+            onChange={(v) => onChange({ ...c, backgroundColor: v })}
+            nullable
+          />
         </Field>
         <label className="flex items-center gap-2 text-[11px] text-gray-400">
           <input
@@ -859,10 +832,6 @@ function StyleTab({
 
   if (hotspotType === "blind") {
     const c = config as BlindConfig;
-    const bgMode =
-      c.backgroundColor == null ? "default"
-      : c.backgroundColor === "transparent" ? "transparent"
-      : "custom";
     return (
       <div className="flex flex-col gap-3">
         <Field label="Icon">
@@ -881,38 +850,36 @@ function StyleTab({
           />
         </Field>
         <Field label="Background">
-          <div className="flex gap-1">
-            {(["default", "custom", "transparent"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => {
-                  if (mode === "default") onChange({ ...c, backgroundColor: null });
-                  else if (mode === "transparent") onChange({ ...c, backgroundColor: "transparent" });
-                  else onChange({ ...c, backgroundColor: "#ffffff" });
-                }}
-                className={[
-                  "flex-1 rounded border px-1.5 py-1 text-[11px] capitalize transition-colors",
-                  bgMode === mode
-                    ? "border-accent bg-accent/20 text-white"
-                    : "border-white/10 text-gray-400 hover:border-white/20 hover:text-white",
-                ].join(" ")}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-          {bgMode === "custom" && (
-            <input
-              type="color"
-              value={c.backgroundColor ?? "#ffffff"}
-              onChange={(e) => onChange({ ...c, backgroundColor: e.target.value })}
-              className="mt-1.5 h-8 w-full cursor-pointer rounded border border-white/10 bg-surface"
-            />
-          )}
+          <ColorPicker
+            value={c.backgroundColor}
+            onChange={(v) => onChange({ ...c, backgroundColor: v })}
+            nullable
+          />
         </Field>
         <p className="text-[11px] text-gray-500">
           Bind this hotspot to a cover entity in the Entity tab.
+        </p>
+      </div>
+    );
+  }
+
+  if (hotspotType === "bins") {
+    const c = config as BinsConfig;
+    return (
+      <div className="flex flex-col gap-3">
+        <AssetPickerField
+          label="Yellow bin image"
+          assetId={c.yellowBinAssetId ?? null}
+          onChange={(id) => onChange({ ...c, yellowBinAssetId: id })}
+        />
+        <AssetPickerField
+          label="Red bin image"
+          assetId={c.redBinAssetId ?? null}
+          onChange={(id) => onChange({ ...c, redBinAssetId: id })}
+        />
+        <p className="text-[11px] text-gray-500">
+          Bind this hotspot to a calendar entity in the Entity tab. The next event named
+          &quot;Yellow Bin&quot; or &quot;Red Bin&quot; determines which image is shown.
         </p>
       </div>
     );

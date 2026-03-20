@@ -52,6 +52,7 @@ export type HotspotType =
   | "badge"
   | "scene"
   | "blind"
+  | "bins"
   | "custom";
 
 export interface HotspotPosition {
@@ -136,6 +137,15 @@ export interface BlindConfig {
   groupEntityIds?: string[];
 }
 
+export interface BinsConfig {
+  /** Asset ID for the yellow bin image */
+  yellowBinAssetId: string | null;
+  /** Asset ID for the red bin image */
+  redBinAssetId: string | null;
+  /** Optional label rendered on the floorplan */
+  label: string | null;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -144,6 +154,7 @@ export type HotspotConfig =
   | BadgeConfig
   | SceneConfig
   | BlindConfig
+  | BinsConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

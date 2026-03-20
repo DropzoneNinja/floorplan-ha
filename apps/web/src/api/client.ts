@@ -160,6 +160,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ state, rules }),
       }),
+    calendarEvents: (entityId: string, days = 30) =>
+      request<Array<{ summary: string; start: { date?: string; dateTime?: string }; end: { date?: string; dateTime?: string } }>>(
+        `/ha/calendar/${encodeURIComponent(entityId)}/events?days=${days}`,
+      ),
   },
 
   // Settings
