@@ -6,6 +6,7 @@ import type {
   StateIconConfig,
   BadgeConfig,
   SceneConfig,
+  BlindConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -17,6 +18,7 @@ import { EntityPicker } from "./EntityPicker.tsx";
 import { ServicePicker } from "./ServicePicker.tsx";
 import { StateRulesForm } from "./StateRulesForm.tsx";
 import { IconPicker } from "./IconPicker.tsx";
+import { ColorPicker } from "./ColorPicker.tsx";
 import { RevisionHistoryModal } from "../RevisionHistoryModal.tsx";
 import { AssetManagerModal } from "../AssetManagerModal.tsx";
 
@@ -437,6 +439,73 @@ function EntityTab({ entityId, onChange }: { entityId: string | null; onChange: 
   );
 }
 
+// ─── Blind Actions Tab ─────────────────────────────────────────────────────────
+
+function BlindActionsTab({
+  config,
+  onChange,
+}: {
+  config: HotspotRaw["configJson"];
+  onChange: (c: HotspotRaw["configJson"]) => void;
+}) {
+  const c = config as { groupEntityIds?: string[] };
+  const groupEntityIds: string[] = c.groupEntityIds ?? [];
+  const [addingEntity, setAddingEntity] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-[11px] text-gray-500">
+        Blind hotspots use built-in cover controls (open, close, set position).
+        Bind to a Home Assistant cover entity in the Entity tab.
+      </p>
+      <div>
+        <p className="mb-2 text-[11px] font-medium text-gray-400">Blind Group</p>
+        <p className="mb-3 text-[11px] text-gray-500">
+          Long-press this hotspot to control multiple covers simultaneously.
+        </p>
+        {groupEntityIds.length > 0 && (
+          <div className="mb-2 flex flex-col gap-1">
+            {groupEntityIds.map((id) => (
+              <div key={id} className="flex items-center justify-between rounded-md bg-white/5 px-3 py-1.5">
+                <span className="truncate text-[11px] text-gray-300">{id}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({ ...c, groupEntityIds: groupEntityIds.filter((x) => x !== id) })
+                  }
+                  className="ml-2 shrink-0 text-[11px] text-gray-500 hover:text-red-400"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {addingEntity ? (
+          <EntityPicker
+            value={null}
+            label="Select cover entity"
+            onChange={(entityId) => {
+              setAddingEntity(false);
+              if (entityId && !groupEntityIds.includes(entityId)) {
+                onChange({ ...c, groupEntityIds: [...groupEntityIds, entityId] });
+              }
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAddingEntity(true)}
+            className="w-full rounded-md border border-dashed border-white/20 py-1.5 text-[11px] text-gray-400 hover:border-white/40 hover:text-white"
+          >
+            + Add Cover Entity
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Actions Tab ───────────────────────────────────────────────────────────────
 
 function ActionsTab({
@@ -497,6 +566,15 @@ function ActionsTab({
     );
   }
 
+  if (hotspotType === "blind") {
+    return (
+      <BlindActionsTab
+        config={config}
+        onChange={onChange}
+      />
+    );
+  }
+
   return (
     <p className="text-[11px] text-gray-500">
       This hotspot type ({hotspotType}) does not support actions.
@@ -524,6 +602,12 @@ function StyleTab({
       : "custom";
     return (
       <div className="flex flex-col gap-3">
+        <Field label="Icon">
+          <IconPicker
+            value={c.icon ?? ""}
+            onChange={(icon) => onChange({ ...c, icon: icon || null })}
+          />
+        </Field>
         <Field label="Label">
           <input
             type="text"
@@ -599,12 +683,7 @@ function StyleTab({
             />
           </Field>
           <Field label="Color">
-            <input
-              type="color"
-              value={c.color}
-              onChange={(e) => onChange({ ...c, color: e.target.value })}
-              className="h-8 w-full cursor-pointer rounded border border-white/10 bg-surface"
-            />
+            <ColorPicker value={c.color} onChange={(v) => onChange({ ...c, color: v })} />
           </Field>
           <Field label="Alignment">
             <select
@@ -649,6 +728,30 @@ function StyleTab({
             <option value="crossfade">Crossfade</option>
           </select>
         </Field>
+        <Field label="Size">
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="stretchToFit"
+                checked={!(c.stretchToFit ?? false)}
+                onChange={() => onChange({ ...c, stretchToFit: false })}
+                className="accent-blue-500"
+              />
+              <span className="text-sm text-gray-300">Actual size (letterboxed)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="stretchToFit"
+                checked={c.stretchToFit ?? false}
+                onChange={() => onChange({ ...c, stretchToFit: true })}
+                className="accent-blue-500"
+              />
+              <span className="text-sm text-gray-300">Stretch to fit bounds</span>
+            </label>
+          </div>
+        </Field>
       </div>
     );
   }
@@ -665,20 +768,10 @@ function StyleTab({
         </Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label="On color">
-            <input
-              type="color"
-              value={c.onColor ?? "#facc15"}
-              onChange={(e) => onChange({ ...c, onColor: e.target.value })}
-              className="h-8 w-full cursor-pointer rounded border border-white/10 bg-surface"
-            />
+            <ColorPicker value={c.onColor ?? "#facc15"} onChange={(v) => onChange({ ...c, onColor: v })} />
           </Field>
           <Field label="Off color">
-            <input
-              type="color"
-              value={c.offColor ?? "#6b7280"}
-              onChange={(e) => onChange({ ...c, offColor: e.target.value })}
-              className="h-8 w-full cursor-pointer rounded border border-white/10 bg-surface"
-            />
+            <ColorPicker value={c.offColor ?? "#6b7280"} onChange={(v) => onChange({ ...c, offColor: v })} />
           </Field>
         </div>
         <label className="flex items-center gap-2 text-[11px] text-gray-400">
@@ -760,6 +853,67 @@ function StyleTab({
             className="input-field"
           />
         </Field>
+      </div>
+    );
+  }
+
+  if (hotspotType === "blind") {
+    const c = config as BlindConfig;
+    const bgMode =
+      c.backgroundColor == null ? "default"
+      : c.backgroundColor === "transparent" ? "transparent"
+      : "custom";
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label="Icon">
+          <IconPicker
+            value={c.icon ?? "mdi:blinds"}
+            onChange={(icon) => onChange({ ...c, icon })}
+          />
+        </Field>
+        <Field label="Label">
+          <input
+            type="text"
+            value={c.label ?? ""}
+            placeholder="e.g. Living Room Blind"
+            onChange={(e) => onChange({ ...c, label: e.target.value || null })}
+            className="input-field"
+          />
+        </Field>
+        <Field label="Background">
+          <div className="flex gap-1">
+            {(["default", "custom", "transparent"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  if (mode === "default") onChange({ ...c, backgroundColor: null });
+                  else if (mode === "transparent") onChange({ ...c, backgroundColor: "transparent" });
+                  else onChange({ ...c, backgroundColor: "#ffffff" });
+                }}
+                className={[
+                  "flex-1 rounded border px-1.5 py-1 text-[11px] capitalize transition-colors",
+                  bgMode === mode
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 text-gray-400 hover:border-white/20 hover:text-white",
+                ].join(" ")}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          {bgMode === "custom" && (
+            <input
+              type="color"
+              value={c.backgroundColor ?? "#ffffff"}
+              onChange={(e) => onChange({ ...c, backgroundColor: e.target.value })}
+              className="mt-1.5 h-8 w-full cursor-pointer rounded border border-white/10 bg-surface"
+            />
+          )}
+        </Field>
+        <p className="text-[11px] text-gray-500">
+          Bind this hotspot to a cover entity in the Entity tab.
+        </p>
       </div>
     );
   }

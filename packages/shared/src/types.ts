@@ -51,6 +51,7 @@ export type HotspotType =
   | "state_icon"
   | "badge"
   | "scene"
+  | "blind"
   | "custom";
 
 export interface HotspotPosition {
@@ -103,6 +104,7 @@ export interface StateImageConfig {
   onAssetId: string | null;
   offAssetId: string | null;
   animationType: "none" | "fade" | "crossfade";
+  stretchToFit?: boolean;
 }
 
 export interface StateIconConfig {
@@ -123,6 +125,17 @@ export interface SceneConfig {
   label: string | null;
 }
 
+export interface BlindConfig {
+  /** MDI icon key shown on the floorplan hotspot, e.g. "mdi:blinds" */
+  icon: string;
+  /** Optional label rendered below the icon on the floorplan */
+  label: string | null;
+  /** CSS color string, "transparent" for no background, or null for the default style */
+  backgroundColor: string | null;
+  /** Entity IDs controlled together when long-pressing this hotspot */
+  groupEntityIds?: string[];
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -130,6 +143,7 @@ export type HotspotConfig =
   | StateIconConfig
   | BadgeConfig
   | SceneConfig
+  | BlindConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

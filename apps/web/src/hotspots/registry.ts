@@ -6,6 +6,7 @@ import { StateImageHotspot } from "./renderers/StateImageHotspot.tsx";
 import { StateIconHotspot } from "./renderers/StateIconHotspot.tsx";
 import { BadgeHotspot } from "./renderers/BadgeHotspot.tsx";
 import { SceneHotspot } from "./renderers/SceneHotspot.tsx";
+import { BlindHotspot } from "./renderers/BlindHotspot.tsx";
 import { CustomHotspot } from "./renderers/CustomHotspot.tsx";
 
 /**
@@ -113,6 +114,20 @@ registerHotspotType({
     serviceCall: { domain: "scene", service: "turn_on" },
     icon: null,
     label: "Scene",
+  },
+});
+
+registerHotspotType({
+  type: "blind",
+  label: "Blind / Cover",
+  description: "Tap to open a position control for roller blinds, shades, or covers",
+  icon: "🪟",
+  Renderer: BlindHotspot,
+  defaultConfig: {
+    icon: "mdi:blinds",
+    label: null,
+    backgroundColor: null,
+    groupEntityIds: [],
   },
 });
 

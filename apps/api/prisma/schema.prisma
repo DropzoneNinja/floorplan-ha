@@ -114,6 +114,7 @@ enum HotspotType {
   state_icon
   badge
   scene
+  blind
   custom
 }
 

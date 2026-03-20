@@ -181,6 +181,8 @@ export const ICON_PATHS: Record<string, string> = {
     "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z",
   "mdi:human":
     "M12 2a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2m-1 5h2l1 5-1 1v6h-2v-4h-.2L10 15v4H8V13l-1-1 1-5h2m5 0c1.1 0 2 .9 2 2v3h-2V9h-1l-1-2h2z",
+  "mdi:walk":
+    "M14 3.8c0-1-.8-1.8-1.8-1.8S10.4 2.8 10.4 3.8s.8 1.8 1.8 1.8S14 4.8 14 3.8M8.3 10.2l-2.2 11h2l1.4-5 1.9 2V22h2v-5.2l-1.9-2 .6-3C13.1 13 14.5 14 16 14v-2c-1.3 0-2.4-.7-3-1.8l-1-1.6c-.3-.6-1-.9-1.7-.9-.3 0-.5.1-.8.1L5 9.8v4.3h2v-3l1.3-.9",
   "mdi:dog":
     "M4.5 11H3L2 10l1-1h2l.5.5L8 8l1 1v2L7 12v2h1l.5.5v2.5h-1.5l-.5-.5V15L5 14H4v1l-.5.5H2v-1.5L2.5 13H4l.5-1V11m15.5-1h-3c-.83 0-1.5.67-1.5 1.5V13h-1.5v1.5H15v1.5h1V19h1l1-1v-2l2-2 1-1v-1l-1-1m-9 0H8l-1.5 1.5V13h1.5v5H9v.5h1.5v-2L11 16l.5-1.5v-2L11 11m2 1l-.5 1.5v2l.5 1.5h1l.5-1.5v-2L14 12h-1z",
 
@@ -337,6 +339,7 @@ export const ICON_CATEGORIES: IconCategory[] = [
       { key: "mdi:home", label: "Home" },
       { key: "mdi:account", label: "Person" },
       { key: "mdi:human", label: "Human" },
+      { key: "mdi:walk", label: "Walking" },
       { key: "mdi:dog", label: "Pet" },
     ],
   },

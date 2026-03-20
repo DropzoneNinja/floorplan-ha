@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Condition, ConditionType, RuleResult } from "@floorplan-ha/shared";
 import type { StateRuleRaw } from "../../hotspots/types.ts";
+import { ColorPicker } from "./ColorPicker.tsx";
 
 type DraftRule = {
   id: string; // local draft id (may be "new-xxx" for unsaved rules)
@@ -318,27 +319,23 @@ function ResultEditor({
       <div className="flex gap-2">
         <div className="flex flex-col gap-0.5">
           <label className="text-[10px] text-gray-500">Color</label>
-          <input
-            type="color"
+          <ColorPicker
             value={result.styleOverrides?.color ?? "#ffffff"}
-            onChange={(e) =>
-              onChange({ ...result, styleOverrides: { ...result.styleOverrides, color: e.target.value } })
+            onChange={(v) =>
+              onChange({ ...result, styleOverrides: { ...result.styleOverrides, color: v } })
             }
-            className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-surface"
           />
         </div>
         <div className="flex flex-col gap-0.5">
           <label className="text-[10px] text-gray-500">Background</label>
-          <input
-            type="color"
+          <ColorPicker
             value={result.styleOverrides?.backgroundColor ?? "#000000"}
-            onChange={(e) =>
+            onChange={(v) =>
               onChange({
                 ...result,
-                styleOverrides: { ...result.styleOverrides, backgroundColor: e.target.value },
+                styleOverrides: { ...result.styleOverrides, backgroundColor: v },
               })
             }
-            className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-surface"
           />
         </div>
         <div className="flex flex-col gap-0.5">

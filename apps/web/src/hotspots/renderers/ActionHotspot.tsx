@@ -3,6 +3,7 @@ import type { ActionConfig, ServiceCall } from "@floorplan-ha/shared";
 import type { HotspotRendererProps } from "../types.ts";
 import { api } from "../../api/client.ts";
 import { useToastStore } from "../../store/toast.ts";
+import { ICON_PATHS } from "../icons.ts";
 
 const LONG_PRESS_DELAY_MS = 600;
 const DOUBLE_TAP_WINDOW_MS = 300;
@@ -131,8 +132,17 @@ export function ActionHotspot({ hotspot, entityState, ruleResult }: HotspotRende
     >
       {isPending ? (
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-      ) : config.hideLabel ? null : (
-        <span className="truncate px-1 text-sm font-medium">{label}</span>
+      ) : (
+        <span className="flex flex-col items-center justify-center gap-0.5 overflow-hidden px-1">
+          {config.icon && (
+            <svg viewBox="0 0 24 24" className="w-1/2 shrink-0" aria-hidden="true" focusable="false">
+              <path d={ICON_PATHS[config.icon] ?? ICON_PATHS["default"]} fill="currentColor" />
+            </svg>
+          )}
+          {!config.hideLabel && label && (
+            <span className="truncate text-sm font-medium leading-tight">{label}</span>
+          )}
+        </span>
       )}
     </button>
   );

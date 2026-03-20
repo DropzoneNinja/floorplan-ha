@@ -34,6 +34,7 @@ export function StateImageHotspot({ hotspot, entityState, ruleResult, isEditMode
 
   const animType = config.animationType ?? "none";
   const transitionCss = animType !== "none" ? "opacity 0.4s ease" : "none";
+  const imgFit = config.stretchToFit ? "object-fill" : "object-contain";
 
   // If there's an override from a state rule, show only that image
   if (overrideAssetId) {
@@ -45,7 +46,7 @@ export function StateImageHotspot({ hotspot, entityState, ruleResult, isEditMode
         <img
           src={api.assets.fileUrl(overrideAssetId)}
           alt={hotspot.name}
-          className="absolute inset-0 h-full w-full object-contain"
+          className={`absolute inset-0 h-full w-full ${imgFit}`}
           draggable={false}
         />
       </div>
@@ -77,7 +78,7 @@ export function StateImageHotspot({ hotspot, entityState, ruleResult, isEditMode
           src={api.assets.fileUrl(onAssetId)}
           alt={isOn ? hotspot.name : ""}
           aria-hidden={!isOn}
-          className="absolute inset-0 h-full w-full object-contain"
+          className={`absolute inset-0 h-full w-full ${imgFit}`}
           style={{ opacity: isEditMode ? 1 : (isOn ? 1 : 0), transition: isEditMode ? "none" : transitionCss }}
           draggable={false}
         />
@@ -87,7 +88,7 @@ export function StateImageHotspot({ hotspot, entityState, ruleResult, isEditMode
           src={api.assets.fileUrl(offAssetId)}
           alt={!isOn ? hotspot.name : ""}
           aria-hidden={isOn}
-          className="absolute inset-0 h-full w-full object-contain"
+          className={`absolute inset-0 h-full w-full ${imgFit}`}
           style={{ opacity: isEditMode ? (onAssetId ? 0 : 1) : (isOn ? 0 : 1), transition: isEditMode ? "none" : transitionCss }}
           draggable={false}
         />

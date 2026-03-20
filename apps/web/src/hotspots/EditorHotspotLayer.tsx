@@ -182,6 +182,10 @@ function EditorHotspotWrapper({ hotspot, isSelected, containerRef, isPreviewMode
         case "nw": w = Math.max(MIN, w - dx); x = clamp(x + dx, 0, x + w - MIN); h = Math.max(MIN, h - dy); y = clamp(y + dy, 0, y + h - MIN); break;
       }
 
+      // Clamp dimensions to the valid API range (schema requires 0–1)
+      w = clamp(w, MIN, 1);
+      h = clamp(h, MIN, 1);
+
       updateDraftSilent(hotspot.id, { x, y, width: w, height: h });
     },
     [toNorm, hotspot.id, updateDraftSilent],
