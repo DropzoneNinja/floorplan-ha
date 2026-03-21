@@ -8,6 +8,7 @@ import type {
   SceneConfig,
   BlindConfig,
   BinsConfig,
+  WeatherConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -587,6 +588,44 @@ function ActionsTab({
     );
   }
 
+  if (hotspotType === "weather") {
+    const c = config as WeatherConfig;
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label="UV index entity (optional)">
+          <EntityPicker
+            value={c.uvEntityId ?? null}
+            onChange={(id) => onChange({ ...c, uvEntityId: id })}
+          />
+        </Field>
+        <p className="text-[11px] text-gray-500">
+          Select a HA sensor that reports the current UV index (e.g.{" "}
+          <code className="rounded bg-white/10 px-1 text-white">sensor.uv_index</code>).
+          It will appear in the card&apos;s current conditions header.
+        </p>
+        <Field label="Temperature unit">
+          <div className="flex gap-2">
+            {(["celsius", "fahrenheit"] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => onChange({ ...c, temperatureUnit: u })}
+                className={[
+                  "flex-1 rounded border py-1 text-xs transition-colors",
+                  c.temperatureUnit === u
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {u === "celsius" ? "°C Celsius" : "°F Fahrenheit"}
+              </button>
+            ))}
+          </div>
+        </Field>
+      </div>
+    );
+  }
+
   return (
     <p className="text-[11px] text-gray-500">
       This hotspot type ({hotspotType}) does not support actions.
@@ -909,6 +948,16 @@ function StyleTab({
           &quot;Yellow Bin&quot; or &quot;Red Bin&quot; determines which image is shown.
         </p>
       </div>
+    );
+  }
+
+  if (hotspotType === "weather") {
+    return (
+      <p className="text-[11px] text-gray-500">
+        The weather card uses its own built-in dark styling. Resize and position it freely
+        on the floorplan using the General tab. UV index and temperature unit can be configured
+        in the Actions tab.
+      </p>
     );
   }
 

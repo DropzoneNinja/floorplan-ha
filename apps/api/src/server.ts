@@ -21,6 +21,7 @@ import { haRoutes } from "./routes/ha.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { stateStreamRoutes } from "./routes/state-stream.js";
 import { revisionRoutes } from "./routes/revisions.js";
+import { weatherRoutes } from "./routes/weather.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -64,6 +65,7 @@ async function buildApp() {
   await app.register(settingsRoutes, { prefix: "/api/settings" });
   await app.register(stateStreamRoutes, { prefix: "/api/state" });
   await app.register(revisionRoutes, { prefix: "/api/revisions" });
+  await app.register(weatherRoutes, { prefix: "/api/weather" });
 
   // ─── Health Check ─────────────────────────────────────────────────────────
 

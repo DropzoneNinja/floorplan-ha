@@ -53,7 +53,8 @@ export type HotspotType =
   | "scene"
   | "blind"
   | "bins"
-  | "custom";
+  | "custom"
+  | "weather";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -150,6 +151,13 @@ export interface BinsConfig {
   label: string | null;
 }
 
+export interface WeatherConfig {
+  /** HA entity ID for current UV index, e.g. "sensor.uv_index". Shown in current conditions header. */
+  uvEntityId: string | null;
+  /** Temperature unit for display. */
+  temperatureUnit: "celsius" | "fahrenheit";
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -159,6 +167,7 @@ export type HotspotConfig =
   | SceneConfig
   | BlindConfig
   | BinsConfig
+  | WeatherConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

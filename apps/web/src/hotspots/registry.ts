@@ -9,6 +9,7 @@ import { SceneHotspot } from "./renderers/SceneHotspot.tsx";
 import { BlindHotspot } from "./renderers/BlindHotspot.tsx";
 import { BinsHotspot } from "./renderers/BinsHotspot.tsx";
 import { CustomHotspot } from "./renderers/CustomHotspot.tsx";
+import { WeatherHotspot } from "./renderers/WeatherHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -144,6 +145,18 @@ registerHotspotType({
     yellowBinAssetId: null,
     redBinAssetId: null,
     label: null,
+  },
+});
+
+registerHotspotType({
+  type: "weather",
+  label: "Weather Card",
+  description: "Live weather from Open-Meteo with 5-day forecast. Click a day for hourly details.",
+  icon: "⛅",
+  Renderer: WeatherHotspot,
+  defaultConfig: {
+    uvEntityId: null,
+    temperatureUnit: "celsius",
   },
 });
 

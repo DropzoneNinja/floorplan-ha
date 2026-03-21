@@ -91,6 +91,7 @@ export const HotspotTypeSchema = z.enum([
   "blind",
   "bins",
   "custom",
+  "weather",
 ]);
 
 export const CreateHotspotSchema = z.object({

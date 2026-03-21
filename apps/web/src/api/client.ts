@@ -184,4 +184,42 @@ export const api = {
     },
   },
 
+  // Weather (Open-Meteo via backend proxy)
+  weather: {
+    forecast: () => request<WeatherForecastResponse>("/weather/forecast"),
+    hourly: (date: string) => request<WeatherHourlyResponse>(`/weather/forecast/hourly?date=${date}`),
+  },
+
 };
+
+// ─── Weather API response types ───────────────────────────────────────────────
+
+export interface WeatherForecastResponse {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  current_weather: {
+    temperature: number;
+    weathercode: number;
+    windspeed: number;
+    is_day: number;
+  };
+  daily: {
+    time: string[];               // YYYY-MM-DD
+    weathercode: number[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    precipitation_sum: number[];
+  };
+}
+
+export interface WeatherHourlyResponse {
+  date: string;
+  hourly: {
+    time: string[];
+    temperature_2m: number[];
+    weathercode: number[];
+    precipitation_probability: number[];
+    windspeed_10m: number[];
+  };
+}

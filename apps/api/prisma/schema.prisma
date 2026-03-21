@@ -117,6 +117,7 @@ enum HotspotType {
   blind
   bins
   custom
+  weather
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────
