@@ -129,6 +129,8 @@ registerHotspotType({
     label: null,
     backgroundColor: null,
     groupEntityIds: [],
+    batteryEntityId: null,
+    lowBatteryThreshold: 40,
   },
 });
 

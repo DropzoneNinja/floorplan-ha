@@ -135,6 +135,10 @@ export interface BlindConfig {
   backgroundColor: string | null;
   /** Entity IDs controlled together when long-pressing this hotspot */
   groupEntityIds?: string[];
+  /** Entity ID of a battery sensor to watch (e.g. sensor.cover_battery) */
+  batteryEntityId?: string | null;
+  /** Battery % below which the low-battery icon is shown. Defaults to 40. */
+  lowBatteryThreshold?: number | null;
 }
 
 export interface BinsConfig {

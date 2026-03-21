@@ -41,6 +41,13 @@ export function BlindHotspot({
   const groupEntityIds = config.groupEntityIds ?? [];
   const hasGroup = groupEntityIds.length > 0;
 
+  const getEntityState = useEntityStateStore((s) => s.getState);
+  const batteryEntityId = config.batteryEntityId ?? null;
+  const batteryState = batteryEntityId ? getEntityState(batteryEntityId) : undefined;
+  const batteryLevel = batteryState ? parseFloat(batteryState.state) : null;
+  const threshold = config.lowBatteryThreshold ?? 40;
+  const isLowBattery = batteryLevel !== null && !isNaN(batteryLevel) && batteryLevel < threshold;
+
   // Resolve background: rule overrides take priority, then config, then default Tailwind classes
   const configBg = config.backgroundColor ?? null;
   const hasCustomBg = stateStyle.backgroundColor != null || configBg != null;
@@ -128,12 +135,21 @@ export function BlindHotspot({
             {groupEntityIds.length}
           </span>
         )}
+        {isLowBattery && (
+          <span className="absolute right-1 top-1 text-red-400" aria-label="Low battery">
+            <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
+              <path d={ICON_PATHS["mdi:battery-alert"]} fill="currentColor" />
+            </svg>
+          </span>
+        )}
       </button>
 
       {showModal && (
         <BlindControlModal
           hotspot={hotspot}
           entityState={entityState}
+          isLowBattery={isLowBattery}
+          batteryLevel={batteryLevel}
           onClose={() => setShowModal(false)}
         />
       )}
@@ -154,10 +170,12 @@ export function BlindHotspot({
 interface BlindControlModalProps {
   hotspot: HotspotRaw;
   entityState: EntityState | undefined;
+  isLowBattery: boolean;
+  batteryLevel: number | null;
   onClose: () => void;
 }
 
-function BlindControlModal({ hotspot, entityState, onClose }: BlindControlModalProps) {
+function BlindControlModal({ hotspot, entityState, isLowBattery, batteryLevel, onClose }: BlindControlModalProps) {
   const addToast = useToastStore((s) => s.addToast);
   const entityId = hotspot.entityId;
 
@@ -368,6 +386,18 @@ function BlindControlModal({ hotspot, entityState, onClose }: BlindControlModalP
             >
               Stop
             </button>
+          </div>
+        )}
+
+        {/* Low battery warning */}
+        {isLowBattery && (
+          <div className="mx-5 mt-4 flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2.5 text-red-400">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
+              <path d={ICON_PATHS["mdi:battery-alert"]} fill="currentColor" />
+            </svg>
+            <span className="text-[11px] font-medium">
+              Low battery{batteryLevel !== null ? ` — ${Math.round(batteryLevel)}%` : ""}
+            </span>
           </div>
         )}
       </div>

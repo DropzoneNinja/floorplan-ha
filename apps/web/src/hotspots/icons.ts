@@ -167,6 +167,8 @@ export const ICON_PATHS: Record<string, string> = {
     "M7 2v11h3v9l7-12h-4l4-8z",
   "mdi:battery":
     "M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z",
+  "mdi:battery-alert":
+    "M16 20H8V6h8m0-4h-1V0h-4v2H8C6.9 2 6 2.9 6 4v16c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m-3 14h-2v2h2v-2m0-8h-2v6h2V8z",
   "mdi:meter-electric":
     "M9 9.5H7V14h2V9.5m0 6H7V17h2v-1.5m0-11H7v2h2v-2M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6v-2H5V5h14v14h-6v2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5m7 4l-2 4h3l-2 6 5-7h-3l2-3h-3z",
   "mdi:wifi":
