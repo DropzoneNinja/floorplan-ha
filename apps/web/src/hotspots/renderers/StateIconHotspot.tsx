@@ -1,6 +1,7 @@
 import type { StateIconConfig } from "@floorplan-ha/shared";
 import type { HotspotRendererProps } from "../types.ts";
 import { ICON_PATHS } from "../icons.ts";
+import { useEntityStateStore } from "../../store/entity-states.ts";
 
 /** States considered "active/on" for color selection */
 const ON_STATES = new Set([
@@ -33,6 +34,13 @@ export function StateIconHotspot({ hotspot, entityState, ruleResult }: HotspotRe
   const opacity = stateStyle.opacity ?? 1;
   const glowColor = stateStyle.glow;
 
+  const getEntityState = useEntityStateStore((s) => s.getState);
+  const batteryEntityId = config.batteryEntityId ?? null;
+  const batteryState = batteryEntityId ? getEntityState(batteryEntityId) : undefined;
+  const batteryLevel = batteryState ? parseFloat(batteryState.state) : null;
+  const threshold = config.lowBatteryThreshold ?? 40;
+  const isLowBattery = batteryLevel !== null && !isNaN(batteryLevel) && batteryLevel < threshold;
+
   return (
     <div
       className="relative flex h-full w-full items-center justify-center"
@@ -52,6 +60,15 @@ export function StateIconHotspot({ hotspot, entityState, ruleResult }: HotspotRe
           style={{ backgroundColor: isOn ? "#22c55e" : "#6b7280" }}
           aria-hidden="true"
         />
+      )}
+
+      {/* Low battery indicator */}
+      {isLowBattery && (
+        <span className="absolute right-1 top-1 text-red-400" aria-label="Low battery">
+          <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
+            <path d={ICON_PATHS["mdi:battery-alert"]} fill="currentColor" />
+          </svg>
+        </span>
       )}
     </div>
   );

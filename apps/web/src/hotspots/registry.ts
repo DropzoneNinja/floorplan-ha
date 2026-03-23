@@ -91,6 +91,8 @@ registerHotspotType({
     onColor: "#facc15",
     offColor: "#6b7280",
     badgeEnabled: false,
+    batteryEntityId: null,
+    lowBatteryThreshold: 40,
   },
 });
 

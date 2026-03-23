@@ -817,6 +817,30 @@ function StyleTab({
           />
           Show badge dot in corner
         </label>
+        <div>
+          <p className="mb-2 text-[11px] font-medium text-gray-400">Battery</p>
+          <p className="mb-3 text-[11px] text-gray-500">
+            Link a battery sensor to show a low-battery warning icon on the hotspot.
+          </p>
+          <EntityPicker
+            value={c.batteryEntityId ?? null}
+            label="Battery sensor entity"
+            onChange={(v) => onChange({ ...c, batteryEntityId: v })}
+          />
+        </div>
+        <Field label="Low battery threshold %">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={c.lowBatteryThreshold ?? 40}
+            placeholder="40"
+            onChange={(e) =>
+              onChange({ ...c, lowBatteryThreshold: e.target.value ? Number(e.target.value) : null })
+            }
+            className="input-field"
+          />
+        </Field>
       </div>
     );
   }

@@ -2,6 +2,8 @@ import { useRef, useCallback, useState, type RefObject } from "react";
 import { HotspotRenderer } from "./HotspotRenderer.tsx";
 import { useEditorStore, applyDraft } from "../store/editor.ts";
 import type { HotspotRaw } from "./types.ts";
+import type { ImageFitBounds } from "./useImageFitBounds.ts";
+import { FULL_BOUNDS } from "./useImageFitBounds.ts";
 
 /** Resize handle directions — 8-point compass */
 type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -13,6 +15,8 @@ interface EditorHotspotLayerProps {
   containerRef: RefObject<HTMLDivElement | null>;
   /** ID of the hotspot to render with a pulsing highlight outline (from the list panel) */
   highlightedId?: string | null;
+  /** Bounds of the rendered image within the container (fractions 0–1). Defaults to full container. */
+  imageBounds?: ImageFitBounds;
 }
 
 /**
@@ -22,7 +26,7 @@ interface EditorHotspotLayerProps {
  * Changes are written into the editor draft store and persisted by the parent
  * when the user clicks Save.
  */
-export function EditorHotspotLayer({ hotspots, containerRef, highlightedId }: EditorHotspotLayerProps) {
+export function EditorHotspotLayer({ hotspots, containerRef, highlightedId, imageBounds = FULL_BOUNDS }: EditorHotspotLayerProps) {
   const { selectedId, selectHotspot, isPreviewMode } = useEditorStore();
 
   const handleLayerPointerDown = useCallback(
@@ -40,16 +44,31 @@ export function EditorHotspotLayer({ hotspots, containerRef, highlightedId }: Ed
       style={{ pointerEvents: isPreviewMode ? "none" : "auto" }}
       onPointerDown={handleLayerPointerDown}
     >
-      {hotspots.map((hotspot) => (
-        <EditorHotspotWrapper
-          key={hotspot.id}
-          hotspot={hotspot}
-          isSelected={hotspot.id === selectedId}
-          isHighlighted={hotspot.id === highlightedId}
-          containerRef={containerRef}
-          isPreviewMode={isPreviewMode}
-        />
-      ))}
+      {/* Sub-div sized to the actual rendered image area so hotspot 0–1 coords
+          are relative to the image, not the container (handles letterboxing).
+          Also handles deselect for clicks on the image background. */}
+      <div
+        style={{
+          position: "absolute",
+          left: `${imageBounds.x * 100}%`,
+          top: `${imageBounds.y * 100}%`,
+          width: `${imageBounds.width * 100}%`,
+          height: `${imageBounds.height * 100}%`,
+        }}
+        onPointerDown={handleLayerPointerDown}
+      >
+        {hotspots.map((hotspot) => (
+          <EditorHotspotWrapper
+            key={hotspot.id}
+            hotspot={hotspot}
+            isSelected={hotspot.id === selectedId}
+            isHighlighted={hotspot.id === highlightedId}
+            containerRef={containerRef}
+            imageBounds={imageBounds}
+            isPreviewMode={isPreviewMode}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -62,9 +81,10 @@ interface WrapperProps {
   isHighlighted: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
   isPreviewMode: boolean;
+  imageBounds: ImageFitBounds;
 }
 
-function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef, isPreviewMode }: WrapperProps) {
+function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef, isPreviewMode, imageBounds }: WrapperProps) {
   const { selectHotspot, updateDraft, updateDraftSilent, pushUndo, getDraft } = useEditorStore();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -89,14 +109,16 @@ function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  /** Convert a pixel rect offset to a normalized 0–1 value */
+  /** Convert a pixel delta to a normalized 0–1 value relative to the image area */
   const toNorm = useCallback(
     (pxDelta: number, axis: "x" | "y"): number => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return 0;
-      return pxDelta / (axis === "x" ? rect.width : rect.height);
+      const containerSize = axis === "x" ? rect.width : rect.height;
+      const imageFraction = axis === "x" ? imageBounds.width : imageBounds.height;
+      return pxDelta / (containerSize * imageFraction);
     },
-    [containerRef],
+    [containerRef, imageBounds],
   );
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));

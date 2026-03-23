@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useStateStream } from "../hooks/use-state-stream.ts";
@@ -8,6 +8,7 @@ import { ConnectionStatus } from "../components/ConnectionStatus.tsx";
 import { ScreensaverOverlay } from "../components/ScreensaverOverlay.tsx";
 import { KioskPinOverlay } from "../components/KioskPinOverlay.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
+import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 // Side-effect: ensure built-in hotspot types are registered
 import "../hotspots/registry.ts";
 import { api } from "../api/client.ts";
@@ -139,8 +140,13 @@ function FloorplanCanvas({ floorplan }: { floorplan: FloorplanWithHotspotsRaw })
     ? `${floorplan.width} / ${floorplan.height}`
     : "16 / 9";
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const imageBounds = useImageFitBounds(containerRef, imageRef, floorplan.imageStretch ?? false);
+
   return (
     <div
+      ref={containerRef}
       className="relative overflow-hidden"
       style={{
         aspectRatio,
@@ -154,6 +160,7 @@ function FloorplanCanvas({ floorplan }: { floorplan: FloorplanWithHotspotsRaw })
     >
       {imageUrl ? (
         <img
+          ref={imageRef}
           src={imageUrl}
           alt={floorplan.name}
           className={`absolute inset-0 h-full w-full select-none ${floorplan.imageStretch ? "object-fill" : "object-contain"}`}
@@ -177,7 +184,7 @@ function FloorplanCanvas({ floorplan }: { floorplan: FloorplanWithHotspotsRaw })
         </div>
       )}
 
-      <HotspotLayer hotspots={floorplan.hotspots} />
+      <HotspotLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
     </div>
   );
 }

@@ -114,6 +114,10 @@ export interface StateIconConfig {
   onColor: string;
   offColor: string;
   badgeEnabled: boolean;
+  /** Entity ID of a battery sensor (e.g. sensor.motion_battery) */
+  batteryEntityId?: string | null;
+  /** Battery % below which the low-battery icon is shown. Defaults to 40. */
+  lowBatteryThreshold?: number | null;
 }
 
 export interface BadgeConfig {

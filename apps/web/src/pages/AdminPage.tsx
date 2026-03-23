@@ -8,6 +8,7 @@ import { useToastStore } from "../store/toast.ts";
 import { api } from "../api/client.ts";
 import { EditorHotspotLayer } from "../hotspots/EditorHotspotLayer.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
+import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 import { ConfigPanel } from "../components/editor/ConfigPanel.tsx";
 import { HotspotListPanel } from "../components/editor/HotspotListPanel.tsx";
 import { TypePickerModal } from "../components/editor/TypePickerModal.tsx";
@@ -637,6 +638,9 @@ function FloorplanCanvas({
     ? `${floorplan.width} / ${floorplan.height}`
     : "16 / 9";
 
+  const imageRef = useRef<HTMLImageElement>(null);
+  const imageBounds = useImageFitBounds(canvasRef, imageRef, floorplan.imageStretch ?? false);
+
   return (
     <div
       ref={canvasRef as React.RefObject<HTMLDivElement>}
@@ -655,6 +659,7 @@ function FloorplanCanvas({
     >
       {imageUrl ? (
         <img
+          ref={imageRef}
           src={imageUrl}
           alt={floorplan.name}
           className={`absolute inset-0 h-full w-full select-none ${floorplan.imageStretch ? "object-fill" : "object-contain"}`}
@@ -677,9 +682,10 @@ function FloorplanCanvas({
           hotspots={floorplan.hotspots}
           containerRef={canvasRef}
           highlightedId={highlightedId ?? null}
+          imageBounds={imageBounds}
         />
       ) : (
-        <HotspotLayer hotspots={floorplan.hotspots} />
+        <HotspotLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
       )}
     </div>
   );
