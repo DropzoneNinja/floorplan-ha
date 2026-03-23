@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client.ts";
 import type { ServiceCall } from "@floorplan-ha/shared";
+import { EntityPicker } from "./EntityPicker.tsx";
 
 interface HaService {
   domain: string;
@@ -154,6 +155,46 @@ export function ServicePicker({ value, onChange, entityId, label = "Service" }: 
           </div>
         )}
       </div>
+
+      {/* Target entity override */}
+      {value && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-400">Target entity</label>
+          <EntityPicker
+            value={value.target?.entityId ?? null}
+            onChange={(id) => {
+              const { target } = value;
+              if (id) {
+                onChange({ ...value, target: { ...(target ?? {}), entityId: id } });
+              } else {
+                const next: ServiceCall["target"] = {};
+                if (target?.deviceId) next.deviceId = target.deviceId;
+                if (target?.areaId) next.areaId = target.areaId;
+                onChange({ ...value, target: next });
+              }
+            }}
+          />
+          {value.target?.entityId == null && entityId && (
+            <p className="text-[10px] text-yellow-500">
+              No target entity set — service will run without an entity target.
+            </p>
+          )}
+          {value.target?.entityId && entityId && value.target.entityId !== entityId && (
+            <div className="flex items-center justify-between gap-2 rounded bg-yellow-500/10 px-2 py-1">
+              <p className="text-[10px] text-yellow-400">
+                Target differs from hotspot entity.
+              </p>
+              <button
+                type="button"
+                onClick={() => onChange({ ...value, target: { ...value.target, entityId } })}
+                className="shrink-0 text-[10px] text-yellow-300 underline hover:text-yellow-100"
+              >
+                Sync
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Service data editor */}
       {value && (
