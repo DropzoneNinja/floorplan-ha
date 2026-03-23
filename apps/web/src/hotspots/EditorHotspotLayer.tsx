@@ -11,6 +11,8 @@ interface EditorHotspotLayerProps {
   hotspots: HotspotRaw[];
   /** Ref to the floorplan container div — used to convert px deltas to normalized coords */
   containerRef: RefObject<HTMLDivElement | null>;
+  /** ID of the hotspot to render with a pulsing highlight outline (from the list panel) */
+  highlightedId?: string | null;
 }
 
 /**
@@ -20,7 +22,7 @@ interface EditorHotspotLayerProps {
  * Changes are written into the editor draft store and persisted by the parent
  * when the user clicks Save.
  */
-export function EditorHotspotLayer({ hotspots, containerRef }: EditorHotspotLayerProps) {
+export function EditorHotspotLayer({ hotspots, containerRef, highlightedId }: EditorHotspotLayerProps) {
   const { selectedId, selectHotspot, isPreviewMode } = useEditorStore();
 
   const handleLayerPointerDown = useCallback(
@@ -43,6 +45,7 @@ export function EditorHotspotLayer({ hotspots, containerRef }: EditorHotspotLaye
           key={hotspot.id}
           hotspot={hotspot}
           isSelected={hotspot.id === selectedId}
+          isHighlighted={hotspot.id === highlightedId}
           containerRef={containerRef}
           isPreviewMode={isPreviewMode}
         />
@@ -56,11 +59,12 @@ export function EditorHotspotLayer({ hotspots, containerRef }: EditorHotspotLaye
 interface WrapperProps {
   hotspot: HotspotRaw;
   isSelected: boolean;
+  isHighlighted: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
   isPreviewMode: boolean;
 }
 
-function EditorHotspotWrapper({ hotspot, isSelected, containerRef, isPreviewMode }: WrapperProps) {
+function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef, isPreviewMode }: WrapperProps) {
   const { selectHotspot, updateDraft, updateDraftSilent, pushUndo, getDraft } = useEditorStore();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -254,6 +258,14 @@ function EditorHotspotWrapper({ hotspot, isSelected, containerRef, isPreviewMode
             borderRadius: 2,
             zIndex: 50,
           }}
+        />
+      )}
+
+      {/* Pulsing amber outline when highlighted from the hotspot list */}
+      {isHighlighted && !isSelected && !isPreviewMode && (
+        <div
+          className="hotspot-highlight pointer-events-none absolute inset-0"
+          style={{ borderRadius: 2, zIndex: 49 }}
         />
       )}
 

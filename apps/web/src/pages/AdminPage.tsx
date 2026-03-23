@@ -9,6 +9,7 @@ import { api } from "../api/client.ts";
 import { EditorHotspotLayer } from "../hotspots/EditorHotspotLayer.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
 import { ConfigPanel } from "../components/editor/ConfigPanel.tsx";
+import { HotspotListPanel } from "../components/editor/HotspotListPanel.tsx";
 import { TypePickerModal } from "../components/editor/TypePickerModal.tsx";
 // Ensure built-in hotspot types are registered; also imports getAllHotspotTypes
 import { getAllHotspotTypes } from "../hotspots/registry.ts";
@@ -55,7 +56,7 @@ export default function AdminPage() {
 
   const {
     selectedId, selectHotspot,
-    drafts, discardAllDrafts,
+    drafts, discardDraft, discardAllDrafts,
     hasDirtyChanges, getDraft,
     isPreviewMode, setPreviewMode,
     undo, redo, canUndo, canRedo,
@@ -124,7 +125,13 @@ export default function AdminPage() {
     if (!hasDirtyChanges()) return;
     setIsSaving(true);
     try {
-      const ids = Object.keys(drafts);
+      // Only save drafts for hotspots that are actually loaded — orphaned draft IDs
+      // (e.g. from a DB restore) would 404 and abort the whole save.
+      const loadedIds = new Set(hotspots.map((h) => h.id));
+      const allDraftIds = Object.keys(drafts);
+      const orphanedIds = allDraftIds.filter((id) => !loadedIds.has(id));
+      orphanedIds.forEach((id) => discardDraft(id));
+      const ids = allDraftIds.filter((id) => loadedIds.has(id));
       await Promise.all(
         ids.map(async (id) => {
           const draft = drafts[id] ?? {};
@@ -171,7 +178,7 @@ export default function AdminPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [drafts, hasDirtyChanges, discardAllDrafts, queryClient, addToast]);
+  }, [drafts, hotspots, hasDirtyChanges, discardDraft, discardAllDrafts, queryClient, addToast]);
 
   // ── Export ────────────────────────────────────────────────────────────────────
 
@@ -331,6 +338,14 @@ export default function AdminPage() {
   const selectedHotspot = selectedId
     ? effectiveHotspots.find((h) => h.id === selectedId) ?? null
     : null;
+
+  // Highlighted hotspot (pulsing outline from the list panel — separate from selection)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  // Clear highlight whenever the user selects a hotspot from the canvas
+  useEffect(() => {
+    if (selectedId) setHighlightedId(null);
+  }, [selectedId]);
 
   const isDirty = hasDirtyChanges();
 
@@ -554,6 +569,7 @@ export default function AdminPage() {
             canvasRef={canvasRef}
             isEditMode={isEditMode}
             isPreviewMode={isPreviewMode}
+            highlightedId={highlightedId}
           />
         </main>
 
@@ -563,17 +579,12 @@ export default function AdminPage() {
             {selectedHotspot ? (
               <ConfigPanel hotspot={selectedHotspot} />
             ) : (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-gray-600 p-4">
-                <p className="text-sm">Select a hotspot to configure it</p>
-                <p className="text-xs">or click "+ Add Hotspot" to place a new one</p>
-                <div className="mt-4 text-xs text-gray-700">
-                  <p>Keyboard shortcuts:</p>
-                  <p className="mt-1">Delete / Backspace — delete selected</p>
-                  <p>Escape — deselect</p>
-                  <p>Cmd+Z — undo</p>
-                  <p>Cmd+Shift+Z — redo</p>
-                </div>
-              </div>
+              <HotspotListPanel
+                hotspots={effectiveHotspots}
+                highlightedId={highlightedId}
+                onHighlight={setHighlightedId}
+                onEdit={(id) => selectHotspot(id)}
+              />
             )}
           </aside>
         )}
@@ -597,11 +608,13 @@ function FloorplanCanvas({
   canvasRef,
   isEditMode,
   isPreviewMode,
+  highlightedId,
 }: {
   floorplan: FloorplanWithHotspotsRaw;
   canvasRef: React.RefObject<HTMLDivElement | null>;
   isEditMode: boolean;
   isPreviewMode: boolean;
+  highlightedId?: string | null;
 }) {
   const cycleImages = (
     floorplan.imageMode === "day_night_cycle" &&
@@ -663,6 +676,7 @@ function FloorplanCanvas({
         <EditorHotspotLayer
           hotspots={floorplan.hotspots}
           containerRef={canvasRef}
+          highlightedId={highlightedId ?? null}
         />
       ) : (
         <HotspotLayer hotspots={floorplan.hotspots} />

@@ -60,6 +60,17 @@ html, body {
   animation: ha-fade 2.5s ease-in-out infinite;
 }
 
+/* ── Hotspot list highlight ──────────────────────────────────────────────── */
+
+@keyframes hotspot-highlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.9), 0 0 8px rgba(251, 191, 36, 0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2), 0 0 16px rgba(251, 191, 36, 0.1); }
+}
+
+.hotspot-highlight {
+  animation: hotspot-highlight-pulse 1.2s ease-in-out infinite;
+}
+
 /* ── Screensaver / kiosk overlay ─────────────────────────────────────────── */
 
 @keyframes screensaver-fade-in {
