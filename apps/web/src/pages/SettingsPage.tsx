@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client.ts";
-import type { UserRecord, AllowedEmailRecord } from "../api/client.ts";
+import type { UserRecord, AllowedEmailRecord, BackupFile } from "../api/client.ts";
 import { useEntityStateStore } from "../store/entity-states.ts";
 import { useThemeStore, type Theme } from "../store/theme.ts";
 import { useToastStore } from "../store/toast.ts";
@@ -105,8 +105,66 @@ export default function SettingsPage() {
     addAllowedEmail.mutate({ email: newEmail, role: newEmailRole });
   };
 
+  // ── Backup & Restore ───────────────────────────────────────────────────────
+
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: backupList = [], refetch: refetchBackups } = useQuery({
+    queryKey: ["backups"],
+    queryFn: () => api.backup.list(),
+  });
+
+  const backupSchedule = (settings?.["backup_schedule"] as string) ?? "off";
+  const backupLastRunAt = (settings?.["backup_last_run_at"] as string) ?? null;
+
+  const createBackupMutation = useMutation({
+    mutationFn: () => api.backup.create(),
+    onSuccess: () => {
+      void refetchBackups();
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      addToast("Backup created successfully", "success");
+    },
+    onError: (err) => addToast(`Backup failed: ${(err as Error).message}`, "error"),
+  });
+
+  const deleteBackupMutation = useMutation({
+    mutationFn: (filename: string) => api.backup.delete(filename),
+    onSuccess: () => {
+      void refetchBackups();
+      addToast("Backup deleted", "success");
+    },
+    onError: (err) => addToast(`Delete failed: ${(err as Error).message}`, "error"),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (file: File) => api.backup.restore(file),
+    onSuccess: (res) => addToast(res.message, "success"),
+    onError: (err) => addToast(`Restore failed: ${(err as Error).message}`, "error"),
+  });
+
+  const handleRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm("⚠️ This will overwrite ALL current data (settings, floorplans, images). Are you sure you want to restore from this backup?")) {
+      e.target.value = "";
+      return;
+    }
+    restoreMutation.mutate(file);
+    e.target.value = "";
+  };
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function formatDate(iso: string): string {
+    return new Date(iso).toLocaleString();
+  }
+
   return (
-    <div className="min-h-screen bg-surface p-8 text-white">
+    <div className="h-full overflow-y-auto bg-surface p-8 text-white">
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center gap-3">
           <Link to="/admin" className="text-xs text-gray-500 hover:text-gray-300">← Admin</Link>
@@ -415,6 +473,128 @@ export default function SettingsPage() {
               </table>
             </div>
           )}
+        </section>
+
+        {/* Backup & Restore */}
+        <section className="mb-6 rounded-xl bg-surface-raised p-6">
+          <h2 className="mb-1 text-sm font-medium uppercase tracking-widest text-gray-400">
+            Backup &amp; Restore
+          </h2>
+          <p className="mb-4 text-xs text-gray-600">
+            Backups include the database, settings, and all uploaded images in a single zip file.
+          </p>
+
+          {/* Schedule + manual trigger */}
+          <div className="mb-4 flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              Automatic backups
+              <select
+                value={backupSchedule}
+                onChange={(e) => saveSetting.mutate({ key: "backup_schedule", value: e.target.value })}
+                className="rounded-lg bg-surface-overlay px-2 py-1.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-accent"
+              >
+                <option value="off">Off</option>
+                <option value="on_change">On change</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => createBackupMutation.mutate()}
+              disabled={createBackupMutation.isPending}
+              className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+            >
+              {createBackupMutation.isPending ? "Creating…" : "Create Backup Now"}
+            </button>
+          </div>
+
+          {backupLastRunAt && (
+            <p className="mb-3 text-xs text-gray-500">
+              Last backup: {formatDate(backupLastRunAt)}
+            </p>
+          )}
+
+          {/* Backup list */}
+          {backupList.length === 0 ? (
+            <p className="mb-4 text-xs text-gray-500">No backups found.</p>
+          ) : (
+            <div className="mb-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-xs text-gray-500">
+                    <th className="pb-2 pr-4 font-medium">File</th>
+                    <th className="pb-2 pr-4 font-medium">Size</th>
+                    <th className="pb-2 pr-4 font-medium">Created</th>
+                    <th className="pb-2 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {backupList.map((b: BackupFile) => (
+                    <tr key={b.filename}>
+                      <td className="py-2 pr-4 font-mono text-xs text-gray-300">{b.filename}</td>
+                      <td className="py-2 pr-4 text-xs text-gray-400">{formatBytes(b.sizeBytes)}</td>
+                      <td className="py-2 pr-4 text-xs text-gray-400">{formatDate(b.createdAt)}</td>
+                      <td className="py-2">
+                        <div className="flex gap-1.5">
+                          <a
+                            href={api.backup.downloadUrl(b.filename)}
+                            download={b.filename}
+                            className="rounded bg-white/10 px-2 py-0.5 text-xs text-gray-300 hover:bg-white/20"
+                          >
+                            Download
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Delete backup ${b.filename}?`)) {
+                                deleteBackupMutation.mutate(b.filename);
+                              }
+                            }}
+                            className="rounded bg-red-900/30 px-2 py-0.5 text-xs text-red-400 hover:bg-red-900/50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Restore */}
+          <div className="border-t border-white/10 pt-4">
+            <p className="mb-2 text-xs font-medium text-yellow-400">
+              ⚠️ Restore — overwrites all current data
+            </p>
+            <p className="mb-3 text-xs text-gray-600">
+              Upload a previously downloaded backup zip to restore all data and images.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                ref={restoreInputRef}
+                type="file"
+                accept=".zip"
+                onChange={handleRestoreFile}
+                className="hidden"
+                id="restore-file-input"
+              />
+              <label
+                htmlFor="restore-file-input"
+                className={[
+                  "cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium",
+                  restoreMutation.isPending
+                    ? "bg-yellow-900/40 text-yellow-300 opacity-60 cursor-not-allowed"
+                    : "bg-yellow-900/30 text-yellow-400 hover:bg-yellow-900/50",
+                ].join(" ")}
+              >
+                {restoreMutation.isPending ? "Restoring…" : "Restore from Backup…"}
+              </label>
+            </div>
+          </div>
         </section>
 
         {/* Navigation links */}

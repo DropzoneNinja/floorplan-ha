@@ -8,6 +8,7 @@ const EnvSchema = z.object({
   HA_BASE_URL: z.string().url(),
   HA_TOKEN: z.string().min(1),
   ASSET_STORAGE_PATH: z.string().default("/uploads"),
+  BACKUP_STORAGE_PATH: z.string().default("/backups"),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
 });
 

@@ -50,6 +50,12 @@ export type AllowedEmailRecord = {
   createdAt: string;
 };
 
+export type BackupFile = {
+  filename: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
 export const api = {
   // Auth
   auth: {
@@ -164,6 +170,24 @@ export const api = {
       request<Array<{ summary: string; start: { date?: string; dateTime?: string }; end: { date?: string; dateTime?: string } }>>(
         `/ha/calendar/${encodeURIComponent(entityId)}/events?days=${days}`,
       ),
+  },
+
+  // Backup & Restore
+  backup: {
+    list: () => request<BackupFile[]>("/backup/list"),
+    create: () => request<BackupFile>("/backup/create", { method: "POST" }),
+    downloadUrl: (filename: string) => `${BASE}/backup/download/${encodeURIComponent(filename)}`,
+    delete: (filename: string) =>
+      request<void>(`/backup/${encodeURIComponent(filename)}`, { method: "DELETE" }),
+    restore: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return request<{ success: boolean; message: string }>("/backup/restore", {
+        method: "POST",
+        body: form,
+        headers: {},
+      });
+    },
   },
 
   // Settings

@@ -53,9 +53,11 @@ services:
       HA_BASE_URL: ${HA_BASE_URL}
       HA_TOKEN: ${HA_TOKEN}
       ASSET_STORAGE_PATH: ${ASSET_STORAGE_PATH:-/uploads}
+      BACKUP_STORAGE_PATH: /backups
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     volumes:
       - uploads:/uploads
+      - ${BACKUP_STORAGE_PATH}:/backups
     ports:
       - "${API_PORT:-3001}:3001"
     depends_on:

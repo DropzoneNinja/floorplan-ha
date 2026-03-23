@@ -10,6 +10,7 @@ import { env } from "./lib/env.js";
 import { prisma } from "./lib/prisma.js";
 import { getHaService } from "./services/ha.js";
 import { initAssetStorage } from "./services/asset-storage.js";
+import { startBackupScheduler } from "./services/backup.js";
 import { authRoutes } from "./routes/auth.js";
 import { userRoutes } from "./routes/users.js";
 import { allowedEmailRoutes } from "./routes/allowed-emails.js";
@@ -19,6 +20,7 @@ import { hotspotRoutes } from "./routes/hotspots.js";
 import { assetRoutes } from "./routes/assets.js";
 import { haRoutes } from "./routes/ha.js";
 import { settingsRoutes } from "./routes/settings.js";
+import { backupRoutes } from "./routes/backup.js";
 import { stateStreamRoutes } from "./routes/state-stream.js";
 import { revisionRoutes } from "./routes/revisions.js";
 import { weatherRoutes } from "./routes/weather.js";
@@ -30,7 +32,7 @@ async function buildApp() {
     logger: {
       level: env.NODE_ENV === "production" ? "info" : "debug",
     },
-    bodyLimit: 25 * 1024 * 1024, // 25 MB — must be >= multipart fileSize limit
+    bodyLimit: 200 * 1024 * 1024, // 200 MB — supports large backup restore uploads
   });
 
   // ─── Plugins ──────────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ async function buildApp() {
   await app.register(fastifyCookie);
 
   await app.register(fastifyMultipart, {
-    limits: { fileSize: 20 * 1024 * 1024 },
+    limits: { fileSize: 200 * 1024 * 1024 },
   });
 
   await app.register(fastifyStatic, {
@@ -63,6 +65,7 @@ async function buildApp() {
   await app.register(assetRoutes, { prefix: "/api/assets" });
   await app.register(haRoutes, { prefix: "/api/ha" });
   await app.register(settingsRoutes, { prefix: "/api/settings" });
+  await app.register(backupRoutes, { prefix: "/api/backup" });
   await app.register(stateStreamRoutes, { prefix: "/api/state" });
   await app.register(revisionRoutes, { prefix: "/api/revisions" });
   await app.register(weatherRoutes, { prefix: "/api/weather" });
@@ -91,6 +94,9 @@ async function main() {
 
   // Initialise asset storage (local filesystem; swap to S3 by replacing the implementation)
   initAssetStorage(env.ASSET_STORAGE_PATH);
+
+  // Start automatic backup scheduler
+  startBackupScheduler();
 
   // Start HA WebSocket connection
   getHaService().connect();
