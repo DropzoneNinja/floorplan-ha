@@ -57,14 +57,14 @@ services:
       - uploads:/uploads
       - ${BACKUP_STORAGE_PATH}:/backups
     ports:
-      - "${API_PORT:-3001}:3001"
+      - "${API_PORT:-3001}:${API_PORT:-3001}"
     depends_on:
       postgres:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:${API_PORT:-3001}/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 5
