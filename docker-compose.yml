@@ -50,11 +50,11 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       HA_BASE_URL: ${HA_BASE_URL}
       HA_TOKEN: ${HA_TOKEN}
-      ASSET_STORAGE_PATH: ${ASSET_STORAGE_PATH:-/uploads}
+      ASSET_STORAGE_PATH: /uploads
       BACKUP_STORAGE_PATH: /backups
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     volumes:
-      - uploads:/uploads
+      - ${ASSET_STORAGE_PATH}:/uploads
       - ${BACKUP_STORAGE_PATH}:/backups
     ports:
       - "${API_PORT:-3001}:${API_PORT:-3001}"
@@ -83,4 +83,3 @@ services:
 
 volumes:
   postgres_data:
-  uploads:
