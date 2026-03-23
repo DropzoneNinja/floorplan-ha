@@ -30,8 +30,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   login: async (email, password) => {
-    const { user } = await api.auth.login(email, password);
-    set({ user });
+    const result = await api.auth.login(email, password);
+    if ("requiresPasswordReset" in result) {
+      throw new Error("Password reset required");
+    }
+    set({ user: result.user });
   },
 
   logout: async () => {

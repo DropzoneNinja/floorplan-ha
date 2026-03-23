@@ -60,9 +60,14 @@ export const api = {
   // Auth
   auth: {
     login: (email: string, password: string) =>
-      request<{ token: string; user: { id: string; email: string; role: string } }>("/auth/login", {
+      request<{ token: string; user: { id: string; email: string; role: string } } | { requiresPasswordReset: true; resetToken: string }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
+      }),
+    changePassword: (token: string, newPassword: string) =>
+      request<{ token: string; user: { id: string; email: string; role: string } }>("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ token, newPassword }),
       }),
     register: (email: string, password: string, confirmPassword: string) =>
       request<{ user: { id: string; email: string; role: string } }>("/auth/register", {
@@ -76,7 +81,7 @@ export const api = {
   // User management
   users: {
     list: () => request<UserRecord[]>("/users"),
-    update: (id: string, data: { isEnabled?: boolean; resetLock?: boolean }) =>
+    update: (id: string, data: { isEnabled?: boolean; resetLock?: boolean; resetPassword?: boolean }) =>
       request<UserRecord>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/users/${id}`, { method: "DELETE" }),
   },
@@ -169,6 +174,10 @@ export const api = {
     calendarEvents: (entityId: string, days = 30) =>
       request<Array<{ summary: string; start: { date?: string; dateTime?: string }; end: { date?: string; dateTime?: string } }>>(
         `/ha/calendar/${encodeURIComponent(entityId)}/events?days=${days}`,
+      ),
+    history: (entityId: string, date: string) =>
+      request<{ readings: Array<{ time: string; value: number }> }>(
+        `/ha/history/${encodeURIComponent(entityId)}?date=${encodeURIComponent(date)}`,
       ),
   },
 

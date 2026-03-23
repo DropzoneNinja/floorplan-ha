@@ -116,6 +116,31 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /** GET /api/ha/history/:entityId?date=YYYY-MM-DD — historical numeric readings for one day */
+  app.get("/history/:entityId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId } = request.params as { entityId: string };
+    const { date } = request.query as { date?: string };
+
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Query param 'date' must be YYYY-MM-DD" });
+    }
+
+    const start = `${date}T00:00:00`;
+    const end = `${date}T23:59:59`;
+
+    const ha = getHaService();
+    try {
+      const raw = await ha.getHistory(entityId, start, end);
+      const readings = raw
+        .filter((r) => !isNaN(parseFloat(r.state)))
+        .map((r) => ({ time: r.last_changed, value: parseFloat(r.state) }));
+      return reply.send({ readings });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
   /** GET /api/ha/states — all current entity states from cache */
   app.get("/states", { preHandler: [requireAuth] }, async (_request, reply) => {
     const ha = getHaService();

@@ -63,6 +63,11 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    # Disable IPv6 in the container — Node.js/undici tries IPv6 first on dual-stack
+    # hosts (e.g. api.open-meteo.com) and ETIMEDOUT instead of falling back when
+    # the container's IPv6 routing is broken. curl avoids this with happy-eyeballs.
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
       interval: 10s

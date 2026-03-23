@@ -12,7 +12,6 @@ type RegisterForm = z.infer<typeof RegisterSchema>;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const login = useAuthStore((s) => s.login);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -23,7 +22,13 @@ export default function LoginPage() {
   const onLogin = async (data: LoginForm) => {
     setError(null);
     try {
-      await login(data.email, data.password);
+      const result = await api.auth.login(data.email, data.password);
+      if ("requiresPasswordReset" in result && result.requiresPasswordReset) {
+        navigate(`/change-password?token=${encodeURIComponent(result.resetToken)}`, { replace: true });
+        return;
+      }
+      const { user } = result as { token: string; user: { id: string; email: string; role: string } };
+      useAuthStore.setState({ user });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

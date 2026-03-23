@@ -184,6 +184,17 @@ export const CreateAllowedEmailSchema = z.object({
   role: z.enum(["admin", "viewer"]).default("viewer"),
 });
 
+export const ChangePasswordSchema = z
+  .object({
+    token: z.string().min(1),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 // ─── Settings Schema ──────────────────────────────────────────────────────────
 
 export const UpdateSettingSchema = z.object({

@@ -156,6 +156,8 @@ export interface WeatherConfig {
   uvEntityId: string | null;
   /** Temperature unit for display. */
   temperatureUnit: "celsius" | "fahrenheit";
+  /** HA entity ID for actual outside temperature, e.g. "sensor.outside_temperature". Shown as reference line on today's chart. */
+  outsideTempEntityId: string | null;
 }
 
 export type HotspotConfig =

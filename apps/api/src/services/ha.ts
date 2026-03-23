@@ -120,6 +120,10 @@ class HaService {
     return this.rest.getCalendarEvents(entityId, start, end);
   }
 
+  async getHistory(entityId: string, start: string, end: string): Promise<Array<{ state: string; last_changed: string }>> {
+    return this.rest.getHistory(entityId, start, end);
+  }
+
   async callService(
     domain: string,
     service: string,

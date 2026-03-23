@@ -603,6 +603,17 @@ function ActionsTab({
           <code className="rounded bg-white/10 px-1 text-white">sensor.uv_index</code>).
           It will appear in the card&apos;s current conditions header.
         </p>
+        <Field label="Outside temperature entity (optional)">
+          <EntityPicker
+            value={c.outsideTempEntityId ?? null}
+            onChange={(id) => onChange({ ...c, outsideTempEntityId: id })}
+          />
+        </Field>
+        <p className="text-[11px] text-gray-500">
+          Select a HA sensor for actual outside temperature (e.g.{" "}
+          <code className="rounded bg-white/10 px-1 text-white">sensor.outside_temperature</code>).
+          Shown as a reference line on the today&apos;s forecast chart.
+        </p>
         <Field label="Temperature unit">
           <div className="flex gap-2">
             {(["celsius", "fahrenheit"] as const).map((u) => (

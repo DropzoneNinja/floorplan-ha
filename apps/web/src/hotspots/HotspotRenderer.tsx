@@ -37,7 +37,8 @@ export const HotspotRenderer = memo(function HotspotRenderer({
   }
 
   // Evaluate state rules (sorted by priority; first match wins)
-  const stateValue = entityState?.state ?? "";
+  // In edit mode, always evaluate against "on" so hotspots show their active state.
+  const stateValue = isEditMode ? "on" : (entityState?.state ?? "");
   const ruleResult =
     hotspot.stateRules.length > 0
       ? evaluateRules(

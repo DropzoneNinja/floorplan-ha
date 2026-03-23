@@ -1,0 +1,1 @@
+make hotspots position relative to the floorplan image, not the browser window

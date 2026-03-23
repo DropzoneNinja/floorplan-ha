@@ -48,7 +48,7 @@ export default function SettingsPage() {
   });
 
   const updateUser = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { isEnabled?: boolean; resetLock?: boolean } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { isEnabled?: boolean; resetLock?: boolean; resetPassword?: boolean } }) =>
       api.users.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
     onError: (err) => addToast(`Update failed: ${(err as Error).message}`, "error"),
@@ -371,6 +371,19 @@ export default function SettingsPage() {
                                 ].join(" ")}
                               >
                                 {user.isEnabled ? "Disable" : "Enable"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateUser.mutate(
+                                    { id: user.id, data: { resetPassword: true } },
+                                    { onSuccess: () => addToast(`Password reset flagged for ${user.email}`, "success") },
+                                  );
+                                }}
+                                disabled={updateUser.isPending}
+                                className="rounded bg-blue-900/30 px-2 py-0.5 text-xs text-blue-400 hover:bg-blue-900/50 disabled:opacity-40"
+                              >
+                                Reset Password
                               </button>
                               <button
                                 type="button"

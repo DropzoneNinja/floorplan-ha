@@ -19,9 +19,6 @@ function isFresh(entry: CacheEntry<unknown>, ttlMs: number): boolean {
   return Date.now() - entry.fetchedAt < ttlMs;
 }
 
-/** Daytime hours to include in hourly responses (inclusive). */
-const DAYTIME_START_HOUR = 6;
-const DAYTIME_END_HOUR = 21;
 
 export async function weatherRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -72,7 +69,7 @@ export async function weatherRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /api/weather/forecast/hourly?date=YYYY-MM-DD
-   * Returns daytime hourly forecast (06:00–21:00) for a single date.
+   * Returns full 24-hour hourly forecast for a single date.
    * Cached per-date server-side for 24 hours.
    */
   app.get("/forecast/hourly", { preHandler: [requireAuth] }, async (request, reply) => {
@@ -117,24 +114,17 @@ export async function weatherRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message: `Weather fetch failed: ${message}` });
     }
 
-    // Filter to daytime hours only
     const hourly = rawData.hourly ?? {};
-    const times = hourly.time ?? [];
-    const dayTimeIndices = times.reduce<number[]>((acc, t, i) => {
-      const hour = new Date(t).getHours();
-      if (hour >= DAYTIME_START_HOUR && hour <= DAYTIME_END_HOUR) acc.push(i);
-      return acc;
-    }, []);
-
-    const filtered = {
-      time: dayTimeIndices.map((i) => times[i]),
-      temperature_2m: dayTimeIndices.map((i) => (hourly.temperature_2m ?? [])[i]),
-      weathercode: dayTimeIndices.map((i) => (hourly.weathercode ?? [])[i]),
-      precipitation_probability: dayTimeIndices.map((i) => (hourly.precipitation_probability ?? [])[i]),
-      windspeed_10m: dayTimeIndices.map((i) => (hourly.windspeed_10m ?? [])[i]),
+    const data = {
+      date,
+      hourly: {
+        time: hourly.time ?? [],
+        temperature_2m: hourly.temperature_2m ?? [],
+        weathercode: hourly.weathercode ?? [],
+        precipitation_probability: hourly.precipitation_probability ?? [],
+        windspeed_10m: hourly.windspeed_10m ?? [],
+      },
     };
-
-    const data = { date, hourly: filtered };
     hourlyCache.set(date, { data, fetchedAt: Date.now() });
     return reply.send(data);
   });

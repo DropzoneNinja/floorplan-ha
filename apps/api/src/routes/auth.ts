@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import * as argon2 from "argon2";
 import { LoginSchema, RegisterSchema } from "@floorplan-ha/shared";
 import { prisma } from "../lib/prisma.js";
-import { signToken } from "../lib/jwt.js";
+import { signToken, signPasswordResetToken, verifyPasswordResetToken } from "../lib/jwt.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const MAX_FAILED_ATTEMPTS = 3;
@@ -38,6 +38,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         error: "Forbidden",
         message: "Account is locked due to too many failed login attempts. Contact an admin to unlock.",
       });
+    }
+
+    // If admin has flagged a password reset, skip password check and issue a short-lived reset token
+    if (user.requiresPasswordReset) {
+      const resetToken = await signPasswordResetToken(user.id);
+      return reply.send({ requiresPasswordReset: true, resetToken });
     }
 
     const valid = await argon2.verify(user.passwordHash, body.data.password);
@@ -149,5 +155,51 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(404).send({ statusCode: 404, error: "Not Found", message: "User not found" });
     }
     return reply.send(user);
+  });
+
+  /**
+   * POST /api/auth/change-password
+   * Complete a password reset initiated by an admin. Accepts a short-lived reset token
+   * and a new password, then logs the user in with a normal session token.
+   */
+  app.post("/change-password", async (request, reply) => {
+    const body = request.body as { token?: unknown; newPassword?: unknown };
+    if (typeof body.token !== "string" || typeof body.newPassword !== "string") {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "token and newPassword are required" });
+    }
+    if (body.newPassword.length < 8) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Password must be at least 8 characters" });
+    }
+
+    let userId: string;
+    try {
+      userId = await verifyPasswordResetToken(body.token);
+    } catch {
+      return reply.status(401).send({ statusCode: 401, error: "Unauthorized", message: "Reset link is invalid or has expired" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.requiresPasswordReset) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Password reset is not pending for this account" });
+    }
+
+    const passwordHash = await argon2.hash(body.newPassword);
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, requiresPasswordReset: false, failedLoginAttempts: 0, lockedAt: null },
+      select: { id: true, email: true, role: true },
+    });
+
+    const token = await signToken({ sub: updated.id, email: updated.email, role: updated.role });
+
+    reply.setCookie("token", token, {
+      httpOnly: true,
+      secure: process.env["NODE_ENV"] === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    return reply.send({ token, user: { id: updated.id, email: updated.email, role: updated.role } });
   });
 }

@@ -513,44 +513,6 @@
 
 ---
 
-## Testing — Full Checklist
-
-### Backend Tests (`apps/api`)
-- [ ] Auth route tests (login success, wrong password, missing fields, role enforcement)
-- [ ] Dashboard CRUD tests
-- [ ] Floorplan CRUD tests
-- [ ] Hotspot CRUD tests
-- [ ] Asset upload tests (valid, invalid MIME, too large)
-- [ ] HA proxy route tests (mock HA responses)
-- [ ] State rule engine unit tests (each condition type, priority order, fallback)
-- [ ] Authorization tests (viewer cannot call admin routes)
-- [ ] Input validation tests (malformed payloads rejected)
-
-### Frontend Tests (`apps/web`)
-- [ ] `<HotspotRenderer>` renders correct component per type
-- [ ] Action hotspot fires correct service call on tap
-- [ ] Text/value hotspot displays formatted sensor value
-- [ ] State rule evaluation drives correct visual output
-- [ ] Edit mode: drag sets correct normalized coordinates
-- [ ] Config panel form validates correctly and shows errors
-- [ ] Entity picker filters by search term
-- [ ] Asset manager uploads and displays asset
-
-### End-to-End Tests (`apps/e2e` with Playwright)
-- [ ] Login flow (success + failure)
-- [ ] Load default dashboard in presentation mode
-- [ ] See hotspots rendered on floorplan
-- [ ] Tap action hotspot → mock backend returns success → visual feedback shown
-- [ ] State change event pushed → hotspot updates in real time
-- [ ] Enter edit mode (admin only)
-- [ ] Add new hotspot → configure entity → save
-- [ ] Edit existing hotspot → change position → save → reload → position preserved
-- [ ] Delete hotspot
-- [ ] Upload asset → appears in asset manager
-- [ ] Logout → redirected to login
-
----
-
 ## Documentation — Full Checklist
 
 ### Files to Create
@@ -607,21 +569,6 @@
 - [ ] Large touch targets (min 44pt) in presentation mode
 - [ ] Keyboard navigation in admin/edit mode
 - [ ] Semantic HTML for form controls and buttons
-
----
-
-## Acceptance Criteria (Final Check)
-
-- [ ] `docker compose up` starts all services and app is accessible in browser
-- [ ] App connects to external Home Assistant instance
-- [ ] Floorplan displays in browser at full viewport
-- [ ] Hotspots can be added and edited in admin mode
-- [ ] Hotspot tap calls Home Assistant service
-- [ ] Hotspot displays live Home Assistant entity state
-- [ ] Dashboard renders correctly on iPad-sized viewport in Safari
-- [ ] Code is documented (README + docs/)
-- [ ] Tests pass (`pnpm test` from root)
-- [ ] Architecture supports adding new hotspot types via registry
 
 ---
 

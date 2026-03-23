@@ -72,6 +72,20 @@ export class HaRestClient {
     );
   }
 
+  /** Get historical state readings for an entity within a day (ISO 8601 start/end strings). */
+  async getHistory(entityId: string, start: string, end: string): Promise<Array<{ state: string; last_changed: string }>> {
+    const params = new URLSearchParams({
+      filter_entity_id: entityId,
+      end_time: end,
+      minimal_response: "true",
+      no_attributes: "true",
+    });
+    const raw = await this.request<Array<Array<{ state: string; last_changed: string }>>>(
+      `/history/period/${encodeURIComponent(start)}?${params}`,
+    );
+    return raw[0] ?? [];
+  }
+
   /** Call a Home Assistant service. */
   async callService(
     domain: string,

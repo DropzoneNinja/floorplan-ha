@@ -18,9 +18,10 @@ model User {
   passwordHash        String    @map("password_hash")
   role                UserRole  @default(viewer)
   isEnabled           Boolean   @default(true) @map("is_enabled")
-  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-  lockedAt            DateTime? @map("locked_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
+  failedLoginAttempts  Int       @default(0) @map("failed_login_attempts")
+  lockedAt             DateTime? @map("locked_at")
+  requiresPasswordReset Boolean  @default(false) @map("requires_password_reset")
+  createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   revisions RevisionHistory[]

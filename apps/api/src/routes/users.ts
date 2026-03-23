@@ -6,6 +6,7 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 const PatchUserSchema = z.object({
   isEnabled: z.boolean().optional(),
   resetLock: z.boolean().optional(),
+  resetPassword: z.boolean().optional(),
 });
 
 export async function userRoutes(app: FastifyInstance): Promise<void> {
@@ -57,6 +58,9 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     if (body.data.resetLock) {
       data["lockedAt"] = null;
       data["failedLoginAttempts"] = 0;
+    }
+    if (body.data.resetPassword) {
+      data["requiresPasswordReset"] = true;
     }
 
     const updated = await prisma.user.update({

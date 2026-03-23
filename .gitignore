@@ -6,6 +6,7 @@ dist/
 *.log
 .DS_Store
 uploads/
+.uploads/
 .next/
 coverage/
 prisma/migrations/*.sql.bak

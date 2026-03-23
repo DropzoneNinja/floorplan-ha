@@ -5,6 +5,7 @@ import { useThemeStore } from "./store/theme.ts";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { Toaster } from "./components/Toaster.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
+import ChangePasswordPage from "./pages/ChangePasswordPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import AdminPage from "./pages/AdminPage.tsx";
 import SettingsPage from "./pages/SettingsPage.tsx";
@@ -25,6 +26,7 @@ export default function App() {
     <>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
 
         <Route
           path="/"
