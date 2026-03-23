@@ -280,15 +280,15 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
 
   // Column layout — strip and chart share the same column widths
   const COL_W = 58;                 // px per hour column
-  const Y_AXIS_W = 32;              // px for y-axis label area (left of plot)
+  const Y_AXIS_W = 32;              // px for fixed y-axis panel (outside scroll)
   const CHART_H = 110;
   const PAD_T = 8;
-  const PAD_B = 4;                  // just enough for bottom edge
+  const PAD_B = 4;
   const plotH = CHART_H - PAD_T - PAD_B;
 
   const hours = data?.hourly?.time ?? [];
   const numHours = hours.length;
-  const totalW = Y_AXIS_W + numHours * COL_W;
+  const chartW = numHours * COL_W;   // SVG width — no Y_AXIS_W, chart starts at x=0
   const forecastTemps = data?.hourly?.temperature_2m ?? [];
 
   const allTemps = [
@@ -299,14 +299,10 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
   const maxTemp = allTemps.length ? Math.max(...allTemps) + 2 : 30;
   const tempRange = maxTemp - minTemp || 1;
 
-  // x: centers the data point in its column (aligned with strip icon above)
-  function toX(hourIndex: number) {
-    return Y_AXIS_W + hourIndex * COL_W + COL_W / 2;
-  }
+  // x: center of column hourIndex (aligns with strip icon above)
+  function toX(hourIndex: number) { return hourIndex * COL_W + COL_W / 2; }
   // x for arbitrary decimal hour (historical readings)
-  function toXTime(decimalHour: number) {
-    return Y_AXIS_W + decimalHour * COL_W;
-  }
+  function toXTime(decimalHour: number) { return decimalHour * COL_W; }
   function toY(temp: number) {
     return PAD_T + plotH - ((temp - minTemp) / tempRange) * plotH;
   }
@@ -321,6 +317,16 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
       return `${toXTime(d.getHours() + d.getMinutes() / 60)},${toY(r.value)}`;
     })
     .join(" ");
+
+  // Highest actual reading within the current hour
+  const currentHourPeak = historyReadings.reduce<{ value: number; x: number } | null>((best, r) => {
+    const d = new Date(r.time);
+    if (d.getHours() !== currentHour) return best;
+    if (!best || r.value > best.value) {
+      return { value: r.value, x: toXTime(d.getHours() + d.getMinutes() / 60) };
+    }
+    return best;
+  }, null);
 
   // Y-axis tick labels (every 5°C)
   const tickStep = 5;
@@ -365,109 +371,134 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
           <div className="py-10 text-center text-sm text-gray-500">No data available</div>
         ) : (
           <>
-            {/* ── Single shared scroll container: strip + chart scroll together ── */}
-            <div className="overflow-x-auto" ref={scrollRef}>
-              <div style={{ width: totalW }}>
+            {/* ── Fixed y-axis | scrollable strip + chart ── */}
+            <div className="flex items-stretch">
 
-                {/* Row 1: Hourly strip */}
-                <div className="flex flex-row border-b border-white/10 py-2">
-                  {/* Y-axis spacer so strip columns align with chart plot area */}
-                  <div style={{ width: Y_AXIS_W, flexShrink: 0 }} />
-                  {hours.map((t, i) => {
-                    const code = data!.hourly.weathercode[i] ?? 0;
-                    const temp = data!.hourly.temperature_2m[i] ?? 0;
-                    const precip = data!.hourly.precipitation_probability[i] ?? 0;
-                    const hour = new Date(t).getHours();
-                    const isCurrent = hour === currentHour;
-                    return (
-                      <div
-                        key={t}
-                        style={{ width: COL_W }}
-                        className={[
-                          "flex shrink-0 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5",
-                          isCurrent ? "bg-white/10" : "",
-                        ].join(" ")}
-                      >
-                        <span className={["text-[10px] font-medium tabular-nums", isCurrent ? "text-white" : "text-gray-500"].join(" ")}>
-                          {hour.toString().padStart(2, "0")}:00
-                        </span>
-                        <WeatherIcon code={code} size={20} />
-                        <span className="line-clamp-2 text-center text-[9px] leading-tight text-gray-400">
-                          {wmoLabel(code)}
-                        </span>
-                        <span className={["text-xs font-semibold", isCurrent ? "text-white" : "text-gray-200"].join(" ")}>
-                          {fmtTempShort(temp, unit)}
-                        </span>
-                        <span className="text-[9px] text-blue-300">{precip}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Row 2: Temperature chart — x positions match strip columns exactly */}
-                <svg width={totalW} height={CHART_H}>
-                  {/* Y-axis labels + horizontal grid lines */}
+              {/* Left: fixed y-axis column — never scrolls */}
+              <div style={{ width: Y_AXIS_W, flexShrink: 0 }} className="flex flex-col">
+                {/* Spacer that stretches to match the strip row height */}
+                <div className="flex-1 border-b border-white/10" />
+                {/* Y-axis labels aligned to chart */}
+                <svg width={Y_AXIS_W} height={CHART_H}>
                   {ticks.map((tick) => {
-                    const y = toY(tick);
                     const label = unit === "fahrenheit"
                       ? `${Math.round(tick * 9 / 5 + 32)}°`
                       : `${tick}°`;
                     return (
-                      <g key={tick}>
-                        <line
-                          x1={Y_AXIS_W} y1={y} x2={totalW} y2={y}
-                          stroke="rgba(255,255,255,0.08)" strokeWidth="1"
-                        />
-                        <text x={Y_AXIS_W - 4} y={y + 3.5} textAnchor="end" fill="#6B7280" fontSize="9">
-                          {label}
-                        </text>
-                      </g>
+                      <text key={tick} x={Y_AXIS_W - 4} y={toY(tick) + 3.5} textAnchor="end" fill="#6B7280" fontSize="9">
+                        {label}
+                      </text>
                     );
                   })}
-
-                  {/* Vertical column separators (subtle) */}
-                  {hours.map((_, i) => (
-                    <line
-                      key={i}
-                      x1={Y_AXIS_W + i * COL_W} y1={PAD_T}
-                      x2={Y_AXIS_W + i * COL_W} y2={CHART_H - PAD_B}
-                      stroke="rgba(255,255,255,0.04)" strokeWidth="1"
-                    />
-                  ))}
-
-                  {/* Current hour highlight band */}
-                  <rect
-                    x={Y_AXIS_W + currentHour * COL_W} y={PAD_T}
-                    width={COL_W} height={plotH}
-                    fill="rgba(255,255,255,0.05)"
-                  />
-
-                  {/* Historical actual temp polyline */}
-                  {historyPolyline && (
-                    <polyline
-                      points={historyPolyline}
-                      fill="none"
-                      stroke="#FB923C"
-                      strokeWidth="1.5"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                      opacity="0.9"
-                    />
-                  )}
-
-                  {/* Forecast polyline (on top) */}
-                  {forecastPolyline && (
-                    <polyline
-                      points={forecastPolyline}
-                      fill="none"
-                      stroke="#60A5FA"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                    />
-                  )}
                 </svg>
+              </div>
 
+              {/* Right: scrollable strip + chart */}
+              <div className="overflow-x-auto flex-1" ref={scrollRef}>
+                <div style={{ width: chartW }}>
+
+                  {/* Row 1: Hourly strip */}
+                  <div className="flex flex-row border-b border-white/10 py-2">
+                    {hours.map((t, i) => {
+                      const code = data!.hourly.weathercode[i] ?? 0;
+                      const temp = data!.hourly.temperature_2m[i] ?? 0;
+                      const precip = data!.hourly.precipitation_probability[i] ?? 0;
+                      const hour = new Date(t).getHours();
+                      const isCurrent = hour === currentHour;
+                      return (
+                        <div
+                          key={t}
+                          style={{ width: COL_W }}
+                          className={[
+                            "flex shrink-0 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5",
+                            isCurrent ? "bg-white/10" : "",
+                          ].join(" ")}
+                        >
+                          <span className={["text-[10px] font-medium tabular-nums", isCurrent ? "text-white" : "text-gray-500"].join(" ")}>
+                            {hour.toString().padStart(2, "0")}:00
+                          </span>
+                          <WeatherIcon code={code} size={20} />
+                          <span className="line-clamp-2 text-center text-[9px] leading-tight text-gray-400">
+                            {wmoLabel(code)}
+                          </span>
+                          <span className={["text-xs font-semibold", isCurrent ? "text-white" : "text-gray-200"].join(" ")}>
+                            {fmtTempShort(temp, unit)}
+                          </span>
+                          <span className="text-[9px] text-blue-300">{precip}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Row 2: Temperature chart — x=0 is the start of hour 0 */}
+                  <svg width={chartW} height={CHART_H}>
+                    {/* Horizontal grid lines */}
+                    {ticks.map((tick) => (
+                      <line
+                        key={tick}
+                        x1={0} y1={toY(tick)} x2={chartW} y2={toY(tick)}
+                        stroke="rgba(255,255,255,0.08)" strokeWidth="1"
+                      />
+                    ))}
+
+                    {/* Vertical column separators (subtle) */}
+                    {hours.map((_, i) => (
+                      <line
+                        key={i}
+                        x1={i * COL_W} y1={PAD_T}
+                        x2={i * COL_W} y2={CHART_H - PAD_B}
+                        stroke="rgba(255,255,255,0.04)" strokeWidth="1"
+                      />
+                    ))}
+
+                    {/* Current hour highlight band */}
+                    <rect
+                      x={currentHour * COL_W} y={PAD_T}
+                      width={COL_W} height={plotH}
+                      fill="rgba(255,255,255,0.05)"
+                    />
+
+                    {/* Historical actual temp polyline */}
+                    {historyPolyline && (
+                      <polyline
+                        points={historyPolyline}
+                        fill="none"
+                        stroke="#FB923C"
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        opacity="0.9"
+                      />
+                    )}
+
+                    {/* Forecast polyline (on top) */}
+                    {forecastPolyline && (
+                      <polyline
+                        points={forecastPolyline}
+                        fill="none"
+                        stroke="#60A5FA"
+                        strokeWidth="2"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                    )}
+
+                    {/* Peak actual temp in current hour */}
+                    {currentHourPeak && (() => {
+                      const px = currentHourPeak.x;
+                      const py = toY(currentHourPeak.value);
+                      return (
+                        <g>
+                          <circle cx={px} cy={py} r="3" fill="#FB923C" />
+                          <text x={px} y={py - 7} textAnchor="middle" fill="#FB923C" fontSize="9" fontWeight="600">
+                            {fmtTempShort(currentHourPeak.value, unit)}
+                          </text>
+                        </g>
+                      );
+                    })()}
+                  </svg>
+
+                </div>
               </div>
             </div>
 
