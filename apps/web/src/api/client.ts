@@ -254,5 +254,6 @@ export interface WeatherHourlyResponse {
     weathercode: number[];
     precipitation_probability: number[];
     windspeed_10m: number[];
+    is_day: number[];
   };
 }

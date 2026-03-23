@@ -666,6 +666,42 @@ function StyleTab({
             onChange={(icon) => onChange({ ...c, icon: icon || null })}
           />
         </Field>
+        <div>
+          <p className="mb-2 text-[11px] font-medium text-gray-400">State icons (optional)</p>
+          <p className="mb-3 text-[11px] text-gray-500">
+            Override the icon and its color based on entity on/off state. Leave blank to use the icon above for both states.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Field label="On-state icon (on / open / active)">
+              <IconPicker
+                value={c.onIcon ?? ""}
+                onChange={(icon) => onChange({ ...c, onIcon: icon || null })}
+              />
+            </Field>
+            <Field label="Off-state icon (off / closed)">
+              <IconPicker
+                value={c.offIcon ?? ""}
+                onChange={(icon) => onChange({ ...c, offIcon: icon || null })}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="On color">
+                <ColorPicker
+                  value={c.onColor ?? null}
+                  onChange={(v) => onChange({ ...c, onColor: v })}
+                  nullable
+                />
+              </Field>
+              <Field label="Off color">
+                <ColorPicker
+                  value={c.offColor ?? null}
+                  onChange={(v) => onChange({ ...c, offColor: v })}
+                  nullable
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
         <Field label="Label">
           <input
             type="text"

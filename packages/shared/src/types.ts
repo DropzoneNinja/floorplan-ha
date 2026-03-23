@@ -88,6 +88,14 @@ export interface ActionConfig {
   holdAction: ServiceCall | null;
   doubleTapAction: ServiceCall | null;
   icon: string | null;
+  /** Icon key shown when entity state is "on/open/active". Falls back to `icon` if null. */
+  onIcon: string | null;
+  /** Icon key shown when entity state is "off/closed". Falls back to `icon` if null. */
+  offIcon: string | null;
+  /** Fill color for the icon when entity is on. Uses CSS currentColor if null. */
+  onColor: string | null;
+  /** Fill color for the icon when entity is off. Uses CSS currentColor if null. */
+  offColor: string | null;
   label: string | null;
   /** Background CSS color, "transparent" for no background, or null for the default style. */
   backgroundColor: string | null;

@@ -4,6 +4,7 @@ import type { HotspotRendererProps } from "../types.ts";
 import { api } from "../../api/client.ts";
 import { useToastStore } from "../../store/toast.ts";
 import { ICON_PATHS } from "../icons.ts";
+import { isOnState } from "../state-utils.ts";
 
 const LONG_PRESS_DELAY_MS = 600;
 const DOUBLE_TAP_WINDOW_MS = 300;
@@ -87,10 +88,16 @@ export function ActionHotspot({ hotspot, entityState, ruleResult }: HotspotRende
   // Apply rule-result style overrides
   const stateStyle = ruleResult?.styleOverrides ?? {};
   const label = ruleResult?.textOverride ?? config.label;
-  const isOn =
-    entityState?.state === "on" ||
-    entityState?.state === "open" ||
-    entityState?.state === "active";
+  const isOn = isOnState(entityState?.state ?? "");
+
+  // Resolve icon: prefer per-state icon if configured, fall back to base icon
+  const resolvedIcon = isOn ? (config.onIcon ?? config.icon) : (config.offIcon ?? config.icon);
+
+  // Resolve icon color: rule result > per-state config color > CSS currentColor
+  const resolvedIconColor =
+    stateStyle.color ??
+    (isOn ? config.onColor : config.offColor) ??
+    undefined;
 
   // Config-level background overrides the class-based default; rule results override config.
   const resolvedBg = stateStyle.backgroundColor ?? config.backgroundColor ?? undefined;
@@ -134,9 +141,12 @@ export function ActionHotspot({ hotspot, entityState, ruleResult }: HotspotRende
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
       ) : (
         <span className="flex flex-col items-center justify-center gap-0.5 overflow-hidden px-1">
-          {config.icon && (
+          {resolvedIcon && (
             <svg viewBox="0 0 24 24" className="w-1/2 shrink-0" aria-hidden="true" focusable="false">
-              <path d={ICON_PATHS[config.icon] ?? ICON_PATHS["default"]} fill="currentColor" />
+              <path
+                d={ICON_PATHS[resolvedIcon] ?? ICON_PATHS["default"]}
+                fill={resolvedIconColor ?? "currentColor"}
+              />
             </svg>
           )}
           {!config.hideLabel && label && (

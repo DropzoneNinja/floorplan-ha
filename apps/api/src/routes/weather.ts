@@ -97,12 +97,12 @@ export async function weatherRoutes(app: FastifyInstance): Promise<void> {
     const url = new URL(OPEN_METEO_BASE);
     url.searchParams.set("latitude", String(latitude));
     url.searchParams.set("longitude", String(longitude));
-    url.searchParams.set("hourly", "temperature_2m,weathercode,precipitation_probability,windspeed_10m");
+    url.searchParams.set("hourly", "temperature_2m,weathercode,precipitation_probability,windspeed_10m,is_day");
     url.searchParams.set("timezone", "auto");
     url.searchParams.set("start_date", date);
     url.searchParams.set("end_date", date);
 
-    let rawData: { hourly?: { time?: string[]; temperature_2m?: number[]; weathercode?: number[]; precipitation_probability?: number[]; windspeed_10m?: number[] } };
+    let rawData: { hourly?: { time?: string[]; temperature_2m?: number[]; weathercode?: number[]; precipitation_probability?: number[]; windspeed_10m?: number[]; is_day?: number[] } };
     try {
       const res = await fetch(url.toString());
       if (!res.ok) {
@@ -123,6 +123,7 @@ export async function weatherRoutes(app: FastifyInstance): Promise<void> {
         weathercode: hourly.weathercode ?? [],
         precipitation_probability: hourly.precipitation_probability ?? [],
         windspeed_10m: hourly.windspeed_10m ?? [],
+        is_day: hourly.is_day ?? [],
       },
     };
     hourlyCache.set(date, { data, fetchedAt: Date.now() });

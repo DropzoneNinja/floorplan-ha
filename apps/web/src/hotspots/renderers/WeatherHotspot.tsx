@@ -200,13 +200,45 @@ function ThunderstormIcon({ size = 28 }: IconProps) {
   );
 }
 
-function WeatherIcon({ code, size = 28 }: { code: number; size?: number }) {
+function MoonIcon({ size = 28 }: IconProps) {
+  // Crescent: outer circle (14,14) r=7 minus inner circle (17,14) r=7
+  // Intersection x=15.5, y=14±6.84 ≈ (15.5, 7.2) and (15.5, 20.8)
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <path d="M15.5 7.2 A7 7 0 1 0 15.5 20.8 A7 7 0 0 1 15.5 7.2 Z" fill="#C4B5FD" />
+    </svg>
+  );
+}
+
+function MainlyClearNightIcon({ size = 28 }: IconProps) {
+  // Crescent moon at top-right: outer (19,9) r=4, inner (21,9) r=4
+  // Intersection x=20, y=9±3.46 ≈ (20, 5.5) and (20, 12.5)
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <path d="M20 5.5 A4 4 0 1 0 20 12.5 A4 4 0 0 1 20 5.5 Z" fill="#C4B5FD" />
+      <CloudShape x={2} y={12} scale={0.75} color="#D1D5DB" />
+    </svg>
+  );
+}
+
+function PartlyCloudyNightIcon({ size = 28 }: IconProps) {
+  // Crescent moon at top-right: outer (18,10) r=5, inner (21,10) r=5
+  // Intersection x=19.5, y=10±4.77 ≈ (19.5, 5.2) and (19.5, 14.8)
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <path d="M19.5 5.2 A5 5 0 1 0 19.5 14.8 A5 5 0 0 1 19.5 5.2 Z" fill="#C4B5FD" />
+      <CloudShape x={1} y={13} scale={0.82} color="#D1D5DB" />
+    </svg>
+  );
+}
+
+function WeatherIcon({ code, size = 28, isNight = false }: { code: number; size?: number; isNight?: boolean }) {
   const type = wmoToIconType(code);
   const props = { size };
   switch (type) {
-    case "clear":         return <SunIcon {...props} />;
-    case "mainly-clear":  return <MainlyClearIcon {...props} />;
-    case "partly-cloudy": return <PartlyCloudyIcon {...props} />;
+    case "clear":         return isNight ? <MoonIcon {...props} /> : <SunIcon {...props} />;
+    case "mainly-clear":  return isNight ? <MainlyClearNightIcon {...props} /> : <MainlyClearIcon {...props} />;
+    case "partly-cloudy": return isNight ? <PartlyCloudyNightIcon {...props} /> : <PartlyCloudyIcon {...props} />;
     case "overcast":      return <OvercastIcon {...props} />;
     case "fog":           return <FogIcon {...props} />;
     case "drizzle":       return <DrizzleIcon {...props} />;
@@ -403,6 +435,7 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
                       const code = data!.hourly.weathercode[i] ?? 0;
                       const temp = data!.hourly.temperature_2m[i] ?? 0;
                       const precip = data!.hourly.precipitation_probability[i] ?? 0;
+                      const isNight = (data!.hourly.is_day[i] ?? 1) === 0;
                       const hour = new Date(t).getHours();
                       const isCurrent = hour === currentHour;
                       return (
@@ -417,7 +450,7 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
                           <span className={["text-[10px] font-medium tabular-nums", isCurrent ? "text-white" : "text-gray-500"].join(" ")}>
                             {hour.toString().padStart(2, "0")}:00
                           </span>
-                          <WeatherIcon code={code} size={20} />
+                          <WeatherIcon code={code} size={20} isNight={isNight} />
                           <span className="line-clamp-2 text-center text-[9px] leading-tight text-gray-400">
                             {wmoLabel(code)}
                           </span>
@@ -578,10 +611,11 @@ function HourlyModal({ date, unit, onClose }: HourlyModalProps) {
                 const temp = data.hourly.temperature_2m[i] ?? 0;
                 const precip = data.hourly.precipitation_probability[i] ?? 0;
                 const wind = data.hourly.windspeed_10m[i] ?? 0;
+                const isNight = (data.hourly.is_day[i] ?? 1) === 0;
                 return (
                   <div key={t} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-white/5">
                     <span className="w-12 shrink-0 text-xs font-medium text-gray-400">{hhmm(t)}</span>
-                    <WeatherIcon code={code} size={20} />
+                    <WeatherIcon code={code} size={20} isNight={isNight} />
                     <span className="flex-1 text-xs text-gray-300">{wmoLabel(code)}</span>
                     <span className="w-12 text-right text-xs font-semibold text-white">{fmtTemp(temp, unit)}</span>
                     {precip > 0 && (
@@ -766,8 +800,8 @@ export function WeatherHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
             </div>
 
             {/* Centre: icon + condition */}
-            <div className="flex items-center justify-center gap-2">
-              <WeatherIcon code={current.weathercode} size={52} />
+            <div className="flex flex-1 items-center justify-center gap-2">
+              <WeatherIcon code={current.weathercode} size={52} isNight={current.is_day === 0} />
               <span className="text-xs font-semibold text-white">{wmoLabel(current.weathercode)}</span>
             </div>
           </button>

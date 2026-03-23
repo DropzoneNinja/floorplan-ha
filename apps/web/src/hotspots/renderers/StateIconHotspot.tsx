@@ -2,16 +2,7 @@ import type { StateIconConfig } from "@floorplan-ha/shared";
 import type { HotspotRendererProps } from "../types.ts";
 import { ICON_PATHS } from "../icons.ts";
 import { useEntityStateStore } from "../../store/entity-states.ts";
-
-/** States considered "active/on" for color selection */
-const ON_STATES = new Set([
-  "on", "open", "active", "playing", "home", "unlocked",
-  "detected", "motion", "true", "armed_home", "armed_away",
-]);
-
-function isOnState(state: string): boolean {
-  return ON_STATES.has(state.toLowerCase());
-}
+import { isOnState } from "../state-utils.ts";
 
 /**
  * State icon hotspot: displays a named icon whose color changes based on entity state.
