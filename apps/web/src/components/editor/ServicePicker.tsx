@@ -35,7 +35,7 @@ export function ServicePicker({ value, onChange, entityId, label = "Service" }: 
   const { data: services = [], isLoading } = useQuery({
     queryKey: ["ha-services"],
     queryFn: () => api.ha.services() as Promise<HaService[]>,
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
   const entityDomain = entityId?.split(".")[0];

@@ -19,14 +19,22 @@ function msUntilMidnight(): number {
   return midnight.getTime() - now.getTime();
 }
 
+/** Returns a local YYYY-MM-DD string (not UTC) for the given date. */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** Returns "today", "tomorrow", or null for any other date. */
 function dayLabel(eventDate: string | null): "today" | "tomorrow" | null {
   if (!eventDate) return null;
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = localDateStr(now);
   const tomorrowDate = new Date(now);
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrow = tomorrowDate.toISOString().slice(0, 10);
+  const tomorrow = localDateStr(tomorrowDate);
   if (eventDate === today) return "today";
   if (eventDate === tomorrow) return "tomorrow";
   return null;

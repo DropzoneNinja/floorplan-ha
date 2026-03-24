@@ -538,11 +538,11 @@
 ## Non-Functional — Checklist
 
 ### Performance
-- [ ] Avoid re-rendering all hotspots on every state change (memoize per entity)
-- [ ] Lazy-load editor code (code split from presentation mode)
-- [ ] Cache floorplan image and static assets with proper headers
-- [ ] Debounce drag events to avoid excessive state updates
-- [ ] Avoid over-fetching HA entities on every render
+- [x] Avoid re-rendering all hotspots on every state change (memoize per entity)
+- [x] Lazy-load editor code (code split from presentation mode)
+- [x] Cache floorplan image and static assets with proper headers
+- [x] Debounce drag events to avoid excessive state updates
+- [x] Avoid over-fetching HA entities on every render
 
 ### Security
 - [ ] HA long-lived access token never sent to frontend
@@ -563,10 +563,8 @@
 
 ## Nice-to-Have (Low Priority / Backlog)
 
-- [ ] Multiple floorplan floors with navigation
 - [ ] Theming system (light/dark/custom)
 - [ ] Presence-aware dashboard behavior (show/hide hotspots based on who is home)
-- [ ] Room/zone grouping for hotspots
 - [ ] Animated device effects (e.g. fan spinning, TV glow)
 - [ ] WebSocket broadcast optimization (only push changed entities to subscribers)
 - [ ] Audit trail UI (view revision history in admin)

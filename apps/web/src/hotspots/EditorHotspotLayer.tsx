@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, type RefObject } from "react";
+import { useRef, useCallback, useState, memo, type RefObject } from "react";
 import { HotspotRenderer } from "./HotspotRenderer.tsx";
 import { useEditorStore, applyDraft } from "../store/editor.ts";
 import { useBatteryPlacementStore } from "../store/battery-placement.ts";
@@ -86,7 +86,7 @@ interface WrapperProps {
   imageBounds: ImageFitBounds;
 }
 
-function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef, isPreviewMode, imageBounds }: WrapperProps) {
+const EditorHotspotWrapper = memo(function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef, isPreviewMode, imageBounds }: WrapperProps) {
   const { selectHotspot, updateDraft, updateDraftSilent, pushUndo, getDraft } = useEditorStore();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -97,6 +97,9 @@ function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef
     origX: number;
     origY: number;
   } | null>(null);
+
+  // RAF id for throttling drag/resize store updates to ~60fps
+  const rafId = useRef<number | null>(null);
 
   // Resize state
   const resizeState = useRef<{
@@ -155,10 +158,13 @@ function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef
       const draft = getDraft(hotspot.id);
       const w = draft.width ?? hotspot.width;
       const h = draft.height ?? hotspot.height;
+      const x = clamp(dragState.current.origX + dx, 0, 1 - w);
+      const y = clamp(dragState.current.origY + dy, 0, 1 - h);
 
-      updateDraftSilent(hotspot.id, {
-        x: clamp(dragState.current.origX + dx, 0, 1 - w),
-        y: clamp(dragState.current.origY + dy, 0, 1 - h),
+      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+      rafId.current = requestAnimationFrame(() => {
+        updateDraftSilent(hotspot.id, { x, y });
+        rafId.current = null;
       });
     },
     [toNorm, hotspot.id, hotspot.width, hotspot.height, getDraft, updateDraftSilent],
@@ -166,6 +172,7 @@ function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef
 
   const handleBodyPointerUp = useCallback(() => {
     dragState.current = null;
+    if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
   }, []);
 
   // ── Resize ─────────────────────────────────────────────────────────────────
@@ -214,13 +221,18 @@ function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef
       w = clamp(w, MIN, 1);
       h = clamp(h, MIN, 1);
 
-      updateDraftSilent(hotspot.id, { x, y, width: w, height: h });
+      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+      rafId.current = requestAnimationFrame(() => {
+        updateDraftSilent(hotspot.id, { x, y, width: w, height: h });
+        rafId.current = null;
+      });
     },
     [toNorm, hotspot.id, updateDraftSilent],
   );
 
   const handleResizePointerUp = useCallback(() => {
     resizeState.current = null;
+    if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
   }, []);
 
   // ── Z-index controls ───────────────────────────────────────────────────────
@@ -361,4 +373,4 @@ function EditorHotspotWrapper({ hotspot, isSelected, isHighlighted, containerRef
       )}
     </div>
   );
-}
+});

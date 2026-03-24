@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { HotspotRaw } from "./types.ts";
 import { HotspotRenderer } from "./HotspotRenderer.tsx";
 import type { ImageFitBounds } from "./useImageFitBounds.ts";
@@ -41,7 +42,7 @@ export function HotspotLayer({ hotspots, isEditMode = false, imageBounds = FULL_
   );
 }
 
-function HotspotItem({
+const HotspotItem = memo(function HotspotItem({
   hotspot,
   isEditMode,
 }: {
@@ -66,4 +67,4 @@ function HotspotItem({
       <HotspotRenderer hotspot={hotspot} isEditMode={isEditMode ?? false} />
     </div>
   );
-}
+});

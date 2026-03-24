@@ -59,6 +59,15 @@ export default function AdminPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
+  // Pre-warm the HA entity list so EntityPickers open instantly
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ["ha-entities"],
+      queryFn: () => api.ha.entities(),
+      staleTime: 5 * 60 * 1000,
+    });
+  }, [queryClient]);
+
   const {
     selectedId, selectHotspot,
     drafts, discardDraft, discardAllDrafts,

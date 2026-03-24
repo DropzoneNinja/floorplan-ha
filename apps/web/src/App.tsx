@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/auth.ts";
 import { useThemeStore } from "./store/theme.ts";
@@ -7,10 +7,10 @@ import { Toaster } from "./components/Toaster.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import ChangePasswordPage from "./pages/ChangePasswordPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
-import AdminPage from "./pages/AdminPage.tsx";
-import SettingsPage from "./pages/SettingsPage.tsx";
-import AssetsPage from "./pages/AssetsPage.tsx";
-import DashboardsPage from "./pages/DashboardsPage.tsx";
+const AdminPage = lazy(() => import("./pages/AdminPage.tsx"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage.tsx"));
+const AssetsPage = lazy(() => import("./pages/AssetsPage.tsx"));
+const DashboardsPage = lazy(() => import("./pages/DashboardsPage.tsx"));
 
 export default function App() {
   const hydrate = useAuthStore((s) => s.hydrate);
@@ -24,6 +24,7 @@ export default function App() {
 
   return (
     <>
+      <Suspense fallback={<div className="fixed inset-0 bg-neutral-950" />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
@@ -76,6 +77,7 @@ export default function App() {
         {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       <Toaster />
     </>
   );

@@ -26,7 +26,7 @@ export function EntityPicker({ value, onChange, label = "Entity" }: EntityPicker
   const { data: entities = [], isLoading } = useQuery({
     queryKey: ["ha-entities"],
     queryFn: () => api.ha.entities() as Promise<HaEntity[]>,
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
   const filtered = useMemo(() => {
