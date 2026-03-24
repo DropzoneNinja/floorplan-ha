@@ -38,6 +38,8 @@ export interface Floorplan {
   width: number;
   height: number;
   backgroundColor: string;
+  /** Asset ID of the heatmap mask PNG (white=interior, black/transparent=exterior). */
+  heatmapMaskAssetId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,7 +56,9 @@ export type HotspotType =
   | "blind"
   | "bins"
   | "custom"
-  | "weather";
+  | "weather"
+  | "temperature_gauge"
+  | "windrose";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -172,6 +176,54 @@ export interface WeatherConfig {
   outsideTempEntityId: string | null;
 }
 
+export interface TemperatureGaugeConfig {
+  /** When true this gauge represents the outside temperature sensor. */
+  isOutside: boolean;
+  /** Unit for display and colour-scale calculations. */
+  unit: "celsius" | "fahrenheit";
+  /**
+   * Radius of the radial gradient heat spread as a fraction of the floorplan width.
+   * Only used for indoor gauges. Default 0.25.
+   */
+  radius: number;
+  /**
+   * "full"    — circular badge with icon, colour ring, and temperature text (default).
+   * "minimal" — temperature text only, no background or decoration.
+   */
+  displayMode: "full" | "minimal";
+  /** CSS colour for the temperature text. Null uses white in full mode and
+   *  the temperature-mapped colour in minimal mode. */
+  textColor: string | null;
+}
+
+export interface WindroseConfig {
+  /**
+   * Degrees to rotate the compass ring so that "N" aligns with map north.
+   * 0 = north is up. Rotates only the ring/labels, never the arrow.
+   */
+  northOffset: number;
+  /** HA entity ID for wind speed, e.g. "sensor.wind_speed". Null = speed not displayed. */
+  speedEntityId: string | null;
+  /** Unit label appended after the speed number, e.g. "km/h". Null = no unit shown. */
+  speedUnit: string | null;
+  /** Whether to show N/S/E/W cardinal labels. Default true. */
+  showCardinals: boolean;
+  /** Whether to also show NE/SE/SW/NW intercardinal labels. Default false. */
+  showIntercardinals: boolean;
+  /**
+   * "from" — meteorological convention: entity value is the direction wind comes FROM.
+   *           Arrow is flipped 180° to show where it blows into. (default)
+   * "into" — entity value is already the direction wind blows into. Arrow used as-is.
+   */
+  bearingMode: "from" | "into";
+  /** CSS colour for the arrow, hub, ring and tick marks. Null = default blue (#60a5fa). */
+  roseColor: string | null;
+  /** CSS colour for all text labels and speed value. Null = default white. */
+  labelColor: string | null;
+  /** Font size for cardinal labels in SVG units (default 8). Intercardinals scale at 75%. */
+  labelSize: number;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -182,6 +234,8 @@ export type HotspotConfig =
   | BlindConfig
   | BinsConfig
   | WeatherConfig
+  | TemperatureGaugeConfig
+  | WindroseConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

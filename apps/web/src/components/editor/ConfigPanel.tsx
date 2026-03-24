@@ -9,6 +9,8 @@ import type {
   BlindConfig,
   BinsConfig,
   WeatherConfig,
+  TemperatureGaugeConfig,
+  WindroseConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -637,6 +639,168 @@ function ActionsTab({
     );
   }
 
+  if (hotspotType === "temperature_gauge") {
+    const c = config as TemperatureGaugeConfig;
+    const radius = c.radius ?? 0.25;
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label="Sensor type">
+          <div className="flex gap-2">
+            {([false, true] as const).map((outside) => (
+              <button
+                key={String(outside)}
+                type="button"
+                onClick={() => onChange({ ...c, isOutside: outside })}
+                className={[
+                  "flex-1 rounded border py-1 text-xs transition-colors",
+                  c.isOutside === outside
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {outside ? "🏠 Outside" : "🛋 Inside"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-gray-500">
+            {c.isOutside
+              ? "Outside gauge fills the exterior region with a solid colour. Only one outside gauge per floorplan is used."
+              : "Inside gauge radiates a heat gradient from its position. Clipped to the interior mask."}
+          </p>
+        </Field>
+
+        <Field label="Temperature unit">
+          <div className="flex gap-2">
+            {(["celsius", "fahrenheit"] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => onChange({ ...c, unit: u })}
+                className={[
+                  "flex-1 rounded border py-1 text-xs transition-colors",
+                  c.unit === u
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {u === "celsius" ? "°C Celsius" : "°F Fahrenheit"}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {!c.isOutside && (
+          <Field label={`Heat radius — ${Math.round(radius * 100)}% of width`}>
+            <input
+              type="range"
+              min={5}
+              max={60}
+              step={1}
+              value={Math.round(radius * 100)}
+              onChange={(e) => onChange({ ...c, radius: Number(e.target.value) / 100 })}
+              className="w-full accent-accent"
+            />
+            <p className="mt-1 text-[11px] text-gray-500">
+              Controls how far the gradient spreads from this gauge. Larger values
+              cover more of the floor. Overlapping gradients blend together.
+            </p>
+          </Field>
+        )}
+      </div>
+    );
+  }
+
+  if (hotspotType === "windrose") {
+    const c = config as WindroseConfig;
+    const northOffset = c.northOffset ?? 0;
+    return (
+      <div className="flex flex-col gap-4">
+        <Field label="Wind speed entity (optional)">
+          <EntityPicker
+            value={c.speedEntityId ?? null}
+            onChange={(id) => onChange({ ...c, speedEntityId: id })}
+          />
+          <p className="mt-1 text-[11px] text-gray-500">
+            A sensor reporting wind speed. Its value is displayed below the arrow.
+          </p>
+        </Field>
+
+        <Field label="Speed unit label">
+          <input
+            type="text"
+            value={c.speedUnit ?? ""}
+            placeholder="e.g. km/h, mph, m/s"
+            onChange={(e) => onChange({ ...c, speedUnit: e.target.value || null })}
+            className="w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-white placeholder-gray-600 focus:border-accent focus:outline-none"
+          />
+        </Field>
+
+        <Field label={`North offset — ${northOffset}°`}>
+          <input
+            type="range"
+            min={0}
+            max={359}
+            step={1}
+            value={northOffset}
+            onChange={(e) => onChange({ ...c, northOffset: Number(e.target.value) })}
+            className="w-full accent-accent"
+          />
+          <p className="mt-1 text-[11px] text-gray-500">
+            Rotates the compass ring so "N" aligns with map north on your floorplan.
+            The arrow always shows the true wind direction regardless of this setting.
+          </p>
+        </Field>
+
+        <Field label="Bearing convention">
+          <div className="flex gap-2">
+            {(["from", "into"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onChange({ ...c, bearingMode: mode })}
+                className={[
+                  "flex-1 rounded border py-1 text-xs transition-colors",
+                  (c.bearingMode ?? "from") === mode
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {mode === "from" ? "Wind from (met.)" : "Wind into"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-gray-500">
+            {(c.bearingMode ?? "from") === "from"
+              ? "Entity reports where wind comes FROM (standard HA wind_bearing). Arrow is flipped to show destination."
+              : "Entity reports where wind is blowing TO. Arrow used as-is."}
+          </p>
+        </Field>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-medium text-gray-400">Labels</p>
+          <label className="flex items-center gap-2 text-[11px] text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={c.showCardinals ?? true}
+              onChange={(e) => onChange({ ...c, showCardinals: e.target.checked })}
+              className="rounded accent-accent"
+            />
+            Show cardinal directions (N, S, E, W)
+          </label>
+          <label className="flex items-center gap-2 text-[11px] text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={c.showIntercardinals ?? false}
+              onChange={(e) => onChange({ ...c, showIntercardinals: e.target.checked })}
+              className="rounded accent-accent"
+            />
+            Show intercardinal directions (NE, SE, SW, NW)
+          </label>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <p className="text-[11px] text-gray-500">
       This hotspot type ({hotspotType}) does not support actions.
@@ -1029,6 +1193,101 @@ function StyleTab({
         on the floorplan using the General tab. UV index and temperature unit can be configured
         in the Actions tab.
       </p>
+    );
+  }
+
+  if (hotspotType === "temperature_gauge") {
+    const c = config as TemperatureGaugeConfig;
+    const displayMode = c.displayMode ?? "full";
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label="Display mode">
+          <div className="flex gap-2">
+            {(["full", "minimal"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onChange({ ...c, displayMode: mode })}
+                className={[
+                  "flex-1 rounded border py-1 text-xs transition-colors",
+                  displayMode === mode
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {mode === "full" ? "🌡 Full" : "Aa Minimal"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-gray-500">
+            {displayMode === "minimal"
+              ? "Shows only the temperature value. Ideal for compact placements."
+              : "Shows the circular badge with icon, colour ring, and temperature."}
+          </p>
+        </Field>
+        <Field label="Text color">
+          <div className="flex items-center gap-2">
+            <ColorPicker
+              value={c.textColor ?? null}
+              onChange={(v) => onChange({ ...c, textColor: v })}
+              nullable
+            />
+            <span className="text-[11px] text-gray-500">
+              {c.textColor
+                ? "Custom colour"
+                : displayMode === "minimal"
+                  ? "Auto (temperature colour)"
+                  : "Auto (white)"}
+            </span>
+          </div>
+        </Field>
+      </div>
+    );
+  }
+
+  if (hotspotType === "windrose") {
+    const c = config as WindroseConfig;
+    const labelSize = c.labelSize ?? 8;
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label="Rose color">
+          <div className="flex items-center gap-2">
+            <ColorPicker
+              value={c.roseColor ?? null}
+              onChange={(v) => onChange({ ...c, roseColor: v })}
+              nullable
+            />
+            <span className="text-[11px] text-gray-500">
+              {c.roseColor ? "Custom" : "Default (blue)"}
+            </span>
+          </div>
+        </Field>
+
+        <Field label="Label color">
+          <div className="flex items-center gap-2">
+            <ColorPicker
+              value={c.labelColor ?? null}
+              onChange={(v) => onChange({ ...c, labelColor: v })}
+              nullable
+            />
+            <span className="text-[11px] text-gray-500">
+              {c.labelColor ? "Custom" : "Default (white)"}
+            </span>
+          </div>
+        </Field>
+
+        <Field label={`Label size — ${labelSize}px`}>
+          <input
+            type="range"
+            min={4}
+            max={16}
+            step={1}
+            value={labelSize}
+            onChange={(e) => onChange({ ...c, labelSize: Number(e.target.value) })}
+            className="w-full accent-accent"
+          />
+        </Field>
+      </div>
     );
   }
 

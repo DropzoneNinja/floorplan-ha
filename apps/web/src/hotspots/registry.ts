@@ -1,4 +1,4 @@
-import type { HotspotType } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -10,6 +10,8 @@ import { BlindHotspot } from "./renderers/BlindHotspot.tsx";
 import { BinsHotspot } from "./renderers/BinsHotspot.tsx";
 import { CustomHotspot } from "./renderers/CustomHotspot.tsx";
 import { WeatherHotspot } from "./renderers/WeatherHotspot.tsx";
+import { TemperatureGaugeHotspot } from "./renderers/TemperatureGaugeHotspot.tsx";
+import { WindroseHotspot } from "./renderers/WindroseHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -164,6 +166,38 @@ registerHotspotType({
     uvEntityId: null,
     temperatureUnit: "celsius",
   },
+});
+
+registerHotspotType({
+  type: "temperature_gauge",
+  label: "Temperature Gauge",
+  description: "Shows a live temperature reading; tap to reveal a colour heatmap across the floorplan",
+  icon: "🌡️",
+  Renderer: TemperatureGaugeHotspot,
+  defaultConfig: {
+    isOutside: false,
+    unit: "celsius",
+    radius: 0.25,
+  },
+});
+
+registerHotspotType({
+  type: "windrose",
+  label: "Wind Rose",
+  description: "Compass rose showing wind direction and optional speed from HA sensors",
+  icon: "🌬️",
+  Renderer: WindroseHotspot,
+  defaultConfig: {
+    northOffset: 0,
+    speedEntityId: null,
+    speedUnit: null,
+    showCardinals: true,
+    showIntercardinals: false,
+    bearingMode: "from",
+    roseColor: null,
+    labelColor: null,
+    labelSize: 8,
+  } satisfies WindroseConfig,
 });
 
 registerHotspotType({

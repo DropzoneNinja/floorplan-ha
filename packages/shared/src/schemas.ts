@@ -92,7 +92,29 @@ export const HotspotTypeSchema = z.enum([
   "bins",
   "custom",
   "weather",
+  "temperature_gauge",
+  "windrose",
 ]);
+
+export const TemperatureGaugeConfigSchema = z.object({
+  isOutside: z.boolean().default(false),
+  unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+  radius: z.number().min(0.01).max(1).default(0.25),
+  displayMode: z.enum(["full", "minimal"]).default("full"),
+  textColor: z.string().nullable().default(null),
+});
+
+export const WindroseConfigSchema = z.object({
+  northOffset: z.number().min(0).max(359).default(0),
+  speedEntityId: z.string().nullable().default(null),
+  speedUnit: z.string().nullable().default(null),
+  showCardinals: z.boolean().default(true),
+  showIntercardinals: z.boolean().default(false),
+  bearingMode: z.enum(["from", "into"]).default("from"),
+  roseColor: z.string().nullable().default(null),
+  labelColor: z.string().nullable().default(null),
+  labelSize: z.number().min(4).max(16).default(8),
+});
 
 export const CreateHotspotSchema = z.object({
   floorplanId: z.string().uuid(),
@@ -136,6 +158,7 @@ export const CreateFloorplanSchema = z.object({
   width: z.number().int().positive().default(1920),
   height: z.number().int().positive().default(1080),
   backgroundColor: z.string().default("#1a1a1a"),
+  heatmapMaskAssetId: z.string().uuid().nullable().default(null),
 });
 
 export const UpdateFloorplanSchema = CreateFloorplanSchema.omit({ dashboardId: true }).partial();

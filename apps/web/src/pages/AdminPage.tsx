@@ -8,6 +8,7 @@ import { useToastStore } from "../store/toast.ts";
 import { api } from "../api/client.ts";
 import { EditorHotspotLayer } from "../hotspots/EditorHotspotLayer.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
+import { HeatmapLayer } from "../hotspots/HeatmapLayer.tsx";
 import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 import { ConfigPanel } from "../components/editor/ConfigPanel.tsx";
 import { HotspotListPanel } from "../components/editor/HotspotListPanel.tsx";
@@ -674,6 +675,15 @@ function FloorplanCanvas({
         <div className="absolute inset-0 flex items-center justify-center text-gray-600">
           <p className="text-sm">No floorplan image — upload one in settings</p>
         </div>
+      )}
+
+      {/* Heatmap overlay — only in preview mode, not edit mode */}
+      {!isEditMode && (
+        <HeatmapLayer
+          hotspots={floorplan.hotspots}
+          maskAssetId={floorplan.heatmapMaskAssetId ?? null}
+          imageBounds={imageBounds}
+        />
       )}
 
       {/* Hotspot overlay */}

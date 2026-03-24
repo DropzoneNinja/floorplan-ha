@@ -62,22 +62,24 @@ model Dashboard {
 // ─── Floorplans ───────────────────────────────────────────────────────────────
 
 model Floorplan {
-  id              String   @id @default(uuid())
-  dashboardId     String   @map("dashboard_id")
-  name            String
-  imageMode       String   @default("single") @map("image_mode")
-  imageStretch    Boolean  @default(true) @map("image_stretch")
-  imageAssetId    String?  @map("image_asset_id")
-  cycleImagesJson Json     @default("{}") @map("cycle_images_json")
-  width           Int      @default(1920)
-  height          Int      @default(1080)
-  backgroundColor String   @default("#1a1a1a") @map("background_color")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid())
+  dashboardId         String   @map("dashboard_id")
+  name                String
+  imageMode           String   @default("single") @map("image_mode")
+  imageStretch        Boolean  @default(true) @map("image_stretch")
+  imageAssetId        String?  @map("image_asset_id")
+  cycleImagesJson     Json     @default("{}") @map("cycle_images_json")
+  width               Int      @default(1920)
+  height              Int      @default(1080)
+  backgroundColor     String   @default("#1a1a1a") @map("background_color")
+  heatmapMaskAssetId  String?  @map("heatmap_mask_asset_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
-  dashboard  Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
-  imageAsset Asset?    @relation(fields: [imageAssetId], references: [id])
-  hotspots   Hotspot[]
+  dashboard        Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  imageAsset       Asset?    @relation("FloorplanImage", fields: [imageAssetId], references: [id])
+  heatmapMaskAsset Asset?    @relation("HeatmapMask", fields: [heatmapMaskAssetId], references: [id])
+  hotspots         Hotspot[]
 
   @@map("floorplans")
 }
@@ -119,6 +121,8 @@ enum HotspotType {
   bins
   custom
   weather
+  temperature_gauge
+  windrose
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────
@@ -152,7 +156,8 @@ model Asset {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  floorplans Floorplan[]
+  floorplans        Floorplan[] @relation("FloorplanImage")
+  heatmapFloorplans Floorplan[] @relation("HeatmapMask")
 
   @@map("assets")
 }

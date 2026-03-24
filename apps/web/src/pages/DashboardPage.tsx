@@ -8,6 +8,7 @@ import { ConnectionStatus } from "../components/ConnectionStatus.tsx";
 import { ScreensaverOverlay } from "../components/ScreensaverOverlay.tsx";
 import { KioskPinOverlay } from "../components/KioskPinOverlay.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
+import { HeatmapLayer } from "../hotspots/HeatmapLayer.tsx";
 import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 // Side-effect: ensure built-in hotspot types are registered
 import "../hotspots/registry.ts";
@@ -184,6 +185,11 @@ function FloorplanCanvas({ floorplan }: { floorplan: FloorplanWithHotspotsRaw })
         </div>
       )}
 
+      <HeatmapLayer
+        hotspots={floorplan.hotspots}
+        maskAssetId={floorplan.heatmapMaskAssetId ?? null}
+        imageBounds={imageBounds}
+      />
       <HotspotLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
     </div>
   );

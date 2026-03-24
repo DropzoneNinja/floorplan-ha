@@ -48,6 +48,8 @@ export interface FloorplanWithHotspotsRaw {
   /** Intrinsic image height in pixels (used for aspect ratio) */
   height: number;
   backgroundColor: string;
+  /** Asset ID of the heatmap mask PNG. White pixels = house interior. */
+  heatmapMaskAssetId: string | null;
   hotspots: HotspotRaw[];
   createdAt: string;
   updatedAt: string;

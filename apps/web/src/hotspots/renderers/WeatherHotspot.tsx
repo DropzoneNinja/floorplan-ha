@@ -311,11 +311,11 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
   const historyReadings = historyData?.readings ?? [];
 
   // Column layout — strip and chart share the same column widths
-  const COL_W = 58;                 // px per hour column
-  const Y_AXIS_W = 32;              // px for fixed y-axis panel (outside scroll)
-  const CHART_H = 110;
-  const PAD_T = 8;
-  const PAD_B = 4;
+  const COL_W = 68;                 // px per hour column
+  const Y_AXIS_W = 36;              // px for fixed y-axis panel (outside scroll)
+  const CHART_H = 140;
+  const PAD_T = 10;
+  const PAD_B = 6;
   const plotH = CHART_H - PAD_T - PAD_B;
 
   const hours = data?.hourly?.time ?? [];
@@ -379,17 +379,17 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-lg rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:rounded-2xl">
+      <div className="w-full max-w-2xl rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:rounded-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <span className="text-sm font-semibold text-white">Today&apos;s Forecast</span>
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <span className="text-base font-semibold text-white">Today&apos;s Forecast</span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded-full p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
             aria-label="Close"
           >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
           </button>
@@ -417,7 +417,7 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
                       ? `${Math.round(tick * 9 / 5 + 32)}°`
                       : `${tick}°`;
                     return (
-                      <text key={tick} x={Y_AXIS_W - 4} y={toY(tick) + 3.5} textAnchor="end" fill="#6B7280" fontSize="9">
+                      <text key={tick} x={Y_AXIS_W - 4} y={toY(tick) + 3.5} textAnchor="end" fill="#6B7280" fontSize="11">
                         {label}
                       </text>
                     );
@@ -443,21 +443,21 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
                           key={t}
                           style={{ width: COL_W }}
                           className={[
-                            "flex shrink-0 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5",
+                            "flex shrink-0 flex-col items-center gap-1 rounded-lg px-1 py-2",
                             isCurrent ? "bg-white/10" : "",
                           ].join(" ")}
                         >
-                          <span className={["text-[10px] font-medium tabular-nums", isCurrent ? "text-white" : "text-gray-500"].join(" ")}>
+                          <span className={["text-xs font-medium tabular-nums", isCurrent ? "text-white" : "text-gray-500"].join(" ")}>
                             {hour.toString().padStart(2, "0")}:00
                           </span>
-                          <WeatherIcon code={code} size={20} isNight={isNight} />
-                          <span className="line-clamp-2 text-center text-[9px] leading-tight text-gray-400">
+                          <WeatherIcon code={code} size={24} isNight={isNight} />
+                          <span className="line-clamp-2 text-center text-[10px] leading-tight text-gray-400">
                             {wmoLabel(code)}
                           </span>
-                          <span className={["text-xs font-semibold", isCurrent ? "text-white" : "text-gray-200"].join(" ")}>
+                          <span className={["text-sm font-semibold", isCurrent ? "text-white" : "text-gray-200"].join(" ")}>
                             {fmtTempShort(temp, unit)}
                           </span>
-                          <span className="text-[9px] text-blue-300">{precip}%</span>
+                          <span className="text-[10px] text-blue-300">{precip}%</span>
                         </div>
                       );
                     })}
@@ -523,7 +523,7 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
                       return (
                         <g>
                           <circle cx={px} cy={py} r="3" fill="#FB923C" />
-                          <text x={px} y={py - 7} textAnchor="middle" fill="#FB923C" fontSize="9" fontWeight="600">
+                          <text x={px} y={py - 8} textAnchor="middle" fill="#FB923C" fontSize="11" fontWeight="600">
                             {fmtTempShort(currentHourPeak.value, unit)}
                           </text>
                         </g>
@@ -536,15 +536,15 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
             </div>
 
             {/* Legend (outside scroll, always visible) */}
-            <div className="flex items-center gap-4 border-t border-white/10 px-4 py-2">
-              <div className="flex items-center gap-1.5">
-                <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#60A5FA" strokeWidth="2" /></svg>
-                <span className="text-[10px] text-gray-400">Forecast</span>
+            <div className="flex items-center gap-5 border-t border-white/10 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#60A5FA" strokeWidth="2.5" /></svg>
+                <span className="text-xs text-gray-400">Forecast</span>
               </div>
               {outsideTempEntityId && (
-                <div className="flex items-center gap-1.5">
-                  <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#FB923C" strokeWidth="1.5" /></svg>
-                  <span className="text-[10px] text-gray-400">
+                <div className="flex items-center gap-2">
+                  <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#FB923C" strokeWidth="2" /></svg>
+                  <span className="text-xs text-gray-400">
                     Actual{entityLabel ? ` · ${entityLabel}` : ""}
                   </span>
                 </div>
@@ -582,22 +582,22 @@ function HourlyModal({ date, unit, onClose }: HourlyModalProps) {
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-sm rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <span className="text-sm font-semibold text-white">{label}</span>
+      <div className="w-full max-w-md rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:rounded-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <span className="text-base font-semibold text-white">{label}</span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded-full p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
             aria-label="Close"
           >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
           </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto p-2">
+        <div className="max-h-[70vh] overflow-y-auto p-3">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
               <span className="text-sm text-gray-400">Loading…</span>
@@ -605,7 +605,7 @@ function HourlyModal({ date, unit, onClose }: HourlyModalProps) {
           ) : !data?.hourly?.time?.length ? (
             <div className="py-10 text-center text-sm text-gray-500">No data available</div>
           ) : (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               {data.hourly.time.map((t, i) => {
                 const code = data.hourly.weathercode[i] ?? 0;
                 const temp = data.hourly.temperature_2m[i] ?? 0;
@@ -613,15 +613,15 @@ function HourlyModal({ date, unit, onClose }: HourlyModalProps) {
                 const wind = data.hourly.windspeed_10m[i] ?? 0;
                 const isNight = (data.hourly.is_day[i] ?? 1) === 0;
                 return (
-                  <div key={t} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-white/5">
-                    <span className="w-12 shrink-0 text-xs font-medium text-gray-400">{hhmm(t)}</span>
-                    <WeatherIcon code={code} size={20} isNight={isNight} />
-                    <span className="flex-1 text-xs text-gray-300">{wmoLabel(code)}</span>
-                    <span className="w-12 text-right text-xs font-semibold text-white">{fmtTemp(temp, unit)}</span>
+                  <div key={t} className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-white/5">
+                    <span className="w-14 shrink-0 text-sm font-medium text-gray-400">{hhmm(t)}</span>
+                    <WeatherIcon code={code} size={24} isNight={isNight} />
+                    <span className="flex-1 text-sm text-gray-300">{wmoLabel(code)}</span>
+                    <span className="w-14 text-right text-sm font-semibold text-white">{fmtTemp(temp, unit)}</span>
                     {precip > 0 && (
-                      <span className="w-10 text-right text-[10px] text-blue-300">💧{precip}%</span>
+                      <span className="w-12 text-right text-xs text-blue-300">💧{precip}%</span>
                     )}
-                    <span className="w-14 text-right text-[10px] text-gray-500">{Math.round(wind)} km/h</span>
+                    <span className="w-16 text-right text-xs text-gray-500">{Math.round(wind)} km/h</span>
                   </div>
                 );
               })}

@@ -26,6 +26,7 @@ interface FloorplanRaw {
   width: number;
   height: number;
   backgroundColor: string;
+  heatmapMaskAssetId?: string | null;
   createdAt: string;
 }
 
@@ -74,9 +75,11 @@ export default function DashboardsPage() {
   const [editFpImageId, setEditFpImageId] = useState<string | null>(null);
   const [editFpCycleImages, setEditFpCycleImages] = useState<CycleImages>(EMPTY_CYCLE);
 
+  const [editFpHeatmapMaskId, setEditFpHeatmapMaskId] = useState<string | null>(null);
+
   // Asset picker state
   const [showAssetPicker, setShowAssetPicker] = useState(false);
-  const [assetPickerTarget, setAssetPickerTarget] = useState<"single" | CyclePickerSlot>("single");
+  const [assetPickerTarget, setAssetPickerTarget] = useState<"single" | "mask" | CyclePickerSlot>("single");
 
   // Fetch metadata for the currently selected single image (for thumbnail + dimension hint)
   const { data: selectedAsset } = useQuery<Asset>({
@@ -212,6 +215,7 @@ export default function DashboardsPage() {
         imageStretch: editFpStretch,
         imageAssetId: editFpMode === "single" ? editFpImageId : null,
         cycleImagesJson: editFpMode === "day_night_cycle" ? editFpCycleImages : EMPTY_CYCLE,
+        heatmapMaskAssetId: editFpHeatmapMaskId,
       },
     });
   };
@@ -225,6 +229,7 @@ export default function DashboardsPage() {
     setEditFpMode(fp.imageMode ?? "single");
     setEditFpStretch(fp.imageStretch ?? true);
     setEditFpImageId(fp.imageAssetId);
+    setEditFpHeatmapMaskId(fp.heatmapMaskAssetId ?? null);
     setEditFpCycleImages(
       fp.cycleImagesJson && "day" in fp.cycleImagesJson
         ? fp.cycleImagesJson as CycleImages
@@ -247,7 +252,7 @@ export default function DashboardsPage() {
   };
 
   // Open asset picker for single image or a specific cycle slot
-  const openPicker = (target: "single" | CyclePickerSlot) => {
+  const openPicker = (target: "single" | "mask" | CyclePickerSlot) => {
     setAssetPickerTarget(target);
     setShowAssetPicker(true);
   };
@@ -255,6 +260,8 @@ export default function DashboardsPage() {
   const handleAssetSelected = (assetId: string) => {
     if (assetPickerTarget === "single") {
       setEditFpImageId(assetId);
+    } else if (assetPickerTarget === "mask") {
+      setEditFpHeatmapMaskId(assetId);
     } else {
       const { phase, index } = assetPickerTarget;
       setEditFpCycleImages((prev) => {
@@ -741,6 +748,57 @@ export default function DashboardsPage() {
                 </p>
               </div>
             )}
+
+            {/* Heatmap mask image picker */}
+            <details className="group">
+              <summary className="cursor-pointer list-none text-[11px] text-gray-500 hover:text-gray-300 select-none">
+                <span>▸ Heatmap mask image (optional)</span>
+              </summary>
+              <div className="mt-2 flex flex-col gap-2">
+                <p className="text-[11px] text-gray-500">
+                  Upload a PNG where <strong className="text-gray-300">white pixels</strong> represent the inside of the house
+                  and <strong className="text-gray-300">black/transparent pixels</strong> represent the outside.
+                  Used by the temperature heatmap overlay.
+                </p>
+                {editFpHeatmapMaskId ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="relative overflow-hidden rounded-lg border border-white/10 bg-surface">
+                      <img
+                        src={api.assets.fileUrl(editFpHeatmapMaskId)}
+                        alt="Heatmap mask"
+                        className="h-24 w-full object-contain opacity-80"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openPicker("mask")}
+                        className="flex-1 rounded bg-white/10 py-1.5 text-xs text-gray-300 hover:bg-white/20"
+                      >
+                        Change Mask
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditFpHeatmapMaskId(null)}
+                        className="rounded bg-red-900/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openPicker("mask")}
+                    className="flex h-20 w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-white/10 text-gray-600 transition-colors hover:border-accent/40 hover:text-accent"
+                  >
+                    <span className="text-lg">🗺️</span>
+                    <span className="text-[11px]">Upload heatmap mask</span>
+                  </button>
+                )}
+              </div>
+            </details>
 
             <div className="flex justify-end gap-2 border-t border-white/5 pt-2">
               <button
