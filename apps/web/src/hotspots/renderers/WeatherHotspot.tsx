@@ -816,7 +816,7 @@ export function WeatherHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
                 className="flex flex-col items-end rounded-lg px-1 py-0.5 transition-colors hover:bg-white/10 active:bg-white/15 disabled:cursor-default"
               >
                 <span className="text-xl font-bold leading-tight text-amber-300">UV {uvValue}</span>
-                <span className="text-xs text-amber-400">{uvRiskLabel(uvValue!)}</span>
+                <span className="text-sm text-amber-400">{uvRiskLabel(uvValue!)}</span>
               </button>
             ) : (
               <span className="text-xs text-gray-600">UV not configured</span>

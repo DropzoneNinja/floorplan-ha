@@ -146,7 +146,7 @@ export function TemperatureGaugeHotspot({ hotspot, entityState, ruleResult, isEd
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Colour stops for the temperature scale (in °C). */
-const TEMP_STOPS: Array<{ temp: number; r: number; g: number; b: number }> = [
+export const TEMP_STOPS: Array<{ temp: number; r: number; g: number; b: number }> = [
   { temp: 0,  r: 33,  g: 150, b: 243 }, // blue
   { temp: 15, r: 0,   g: 188, b: 212 }, // cyan
   { temp: 20, r: 76,  g: 175, b: 80  }, // green

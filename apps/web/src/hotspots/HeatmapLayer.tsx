@@ -6,7 +6,7 @@ import { type ImageFitBounds, FULL_BOUNDS } from "./useImageFitBounds.ts";
 import { useHeatmapStore } from "../store/heatmap.ts";
 import { useEntityStateStore } from "../store/entity-states.ts";
 import { api } from "../api/client.ts";
-import { tempToColor } from "./renderers/TemperatureGaugeHotspot.tsx";
+import { tempToColor, TEMP_STOPS } from "./renderers/TemperatureGaugeHotspot.tsx";
 
 interface HeatmapLayerProps {
   hotspots: HotspotRaw[];
@@ -204,6 +204,70 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
           height={CANVAS_H}
           style={{ width: "100%", height: "100%", opacity: 0.8 }}
         />
+        <HeatmapLegend />
+      </div>
+    </div>
+  );
+}
+
+// ─── Legend ──────────────────────────────────────────────────────────────────
+
+function HeatmapLegend() {
+  // Build a vertical CSS gradient from cold → hot
+  const gradientStops = TEMP_STOPS.map(
+    (s) => `rgba(${s.r},${s.g},${s.b},0.9)`,
+  ).join(", ");
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        bottom: "24px",
+        right: "24px",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "stretch",
+        gap: "9px",
+        background: "rgba(15,23,42,0.75)",
+        backdropFilter: "blur(6px)",
+        borderRadius: "12px",
+        padding: "15px 15px 15px 12px",
+        cursor: "default",
+        pointerEvents: "auto",
+      }}
+    >
+      {/* Gradient bar */}
+      <div
+        style={{
+          width: "18px",
+          borderRadius: "6px",
+          background: `linear-gradient(to top, ${gradientStops})`,
+          flexShrink: 0,
+        }}
+      />
+      {/* Temperature labels — one per stop, evenly spaced */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column-reverse",
+          justifyContent: "space-between",
+        }}
+      >
+        {TEMP_STOPS.map((s) => (
+          <span
+            key={s.temp}
+            style={{
+              color: `rgba(${s.r},${s.g},${s.b},1)`,
+              fontSize: "16px",
+              fontWeight: 600,
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {s.temp}°C
+          </span>
+        ))}
       </div>
     </div>
   );
