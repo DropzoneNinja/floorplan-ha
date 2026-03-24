@@ -3,7 +3,7 @@
 A browser-based home automation dashboard for wall-mounted iPads and touch-screen displays. Overlay interactive hotspots on a floorplan image to view and control [Home Assistant](https://www.home-assistant.io/) entities in real time.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-0.5.0-green)
+![Version](https://img.shields.io/badge/version-0.6.1-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue)
 ![React](https://img.shields.io/badge/React-18-61DAFB)
 
@@ -13,7 +13,7 @@ A browser-based home automation dashboard for wall-mounted iPads and touch-scree
 
 - **Presentation mode** — fullscreen kiosk display with live entity state updates via WebSocket
 - **Visual editor** — drag, resize, and configure hotspots directly on the floorplan
-- **7 built-in hotspot types** — action buttons, text labels, state images, state icons, badges, scene triggers, and custom placeholders
+- **14 built-in hotspot types** — action buttons, text labels, state images, state icons, badges, scene triggers, blinds/covers, bin day reminders, weather cards, temperature gauges, wind roses, battery monitors, clocks, and custom placeholders
 - **Rules engine** — map entity states to colors, labels, and images with conditional logic
 - **Day/night image cycling** — swap floorplan images automatically based on solar position
 - **Screensaver** — inactivity detection with configurable timeout
@@ -126,6 +126,7 @@ npm run format      # Prettier formatting
 | `API_PORT` | No | `3001` | Backend port |
 | `APP_PORT` | No | `5173` | Frontend port |
 | `ASSET_STORAGE_PATH` | No | `/uploads` | Where uploaded images are stored |
+| `BACKUP_STORAGE_PATH` | No | `/backups` | Where automatic backups are written |
 | `CORS_ORIGIN` | No | `http://localhost:5173` | Allowed frontend origin |
 
 ---
@@ -135,12 +136,19 @@ npm run format      # Prettier formatting
 | Type | Description |
 |------|-------------|
 | `action` | Tap/hold/double-tap to call any Home Assistant service |
-| `text` | Display a live entity attribute (temperature, power, etc.) |
-| `state_image` | Show different images based on on/off state |
-| `state_icon` | MDI icon with state-driven color |
-| `badge` | Pill label with state-to-text mapping |
+| `text` | Display a live entity attribute with a configurable template |
+| `state_image` | Show different images based on on/off state with crossfade transitions |
+| `state_icon` | MDI icon with state-driven color and optional battery badge |
+| `badge` | Pill label with configurable state-to-text and state-to-color mapping |
 | `scene` | Single-tap scene or script trigger |
-| `custom` | Placeholder for your own renderer |
+| `blind` | Cover/blind position control with drag slider; long-press for group control |
+| `bins` | Bin day reminder driven by a Home Assistant calendar entity |
+| `weather` | Full weather card with forecast, hourly breakdown, and UV index |
+| `temperature_gauge` | Circular temperature badge; indoor gauges drive the heatmap overlay |
+| `windrose` | Compass rose showing live wind direction and speed |
+| `battery` | Aggregate battery monitor; tap to reveal individual levels on the floorplan |
+| `clock` | Analog or digital clock with timezone, date, and custom label support |
+| `custom` | Placeholder for your own renderer — register via `registerHotspotType()` |
 
 See [docs/extending-hotspots.md](docs/extending-hotspots.md) for a step-by-step guide to adding new hotspot types without modifying core files.
 

@@ -333,13 +333,11 @@
 - [x] Assign floorplans to dashboards
 - [x] Set default dashboard
 - [x] Presentation mode loads default dashboard on visit
-- [ ] Navigation between dashboards in presentation mode
 
 ### Revision History
 - [x] Log all create/update/delete operations on hotspots and floorplans to `RevisionHistory`
 - [x] `GET /api/revisions?entity_type=hotspot&entity_id=:id` — list revisions
 - [x] Revision history viewer in admin UI (side panel or modal)
-- [ ] Restore to previous revision (optional)
 
 ### Animations
 - [x] Define animation types: `pulse`, `fade`, `blink`, `none`
@@ -380,163 +378,160 @@
 ## Backend API — Full Checklist
 
 ### Auth
-- [ ] `POST /api/auth/login`
-- [ ] `POST /api/auth/logout`
-- [ ] `GET /api/auth/me`
+- [x] `POST /api/auth/login`
+- [x] `POST /api/auth/logout`
+- [x] `GET /api/auth/me`
 
 ### Dashboards
-- [ ] `GET /api/dashboards`
-- [ ] `GET /api/dashboards/default`
-- [ ] `GET /api/dashboards/:id`
-- [ ] `POST /api/dashboards`
-- [ ] `PATCH /api/dashboards/:id`
-- [ ] `DELETE /api/dashboards/:id`
+- [x] `GET /api/dashboards`
+- [x] `GET /api/dashboards/default`
+- [x] `GET /api/dashboards/:id`
+- [x] `POST /api/dashboards`
+- [x] `PATCH /api/dashboards/:id`
+- [x] `DELETE /api/dashboards/:id`
 
 ### Floorplans
-- [ ] `GET /api/floorplans` (filter by dashboard_id)
-- [ ] `GET /api/floorplans/:id` (includes hotspots)
-- [ ] `POST /api/floorplans`
-- [ ] `PATCH /api/floorplans/:id`
-- [ ] `DELETE /api/floorplans/:id`
-- [ ] `GET /api/floorplans/:id/export`
-- [ ] `POST /api/floorplans/import`
+- [x] `GET /api/floorplans` (filter by dashboard_id)
+- [x] `GET /api/floorplans/:id` (includes hotspots)
+- [x] `POST /api/floorplans`
+- [x] `PATCH /api/floorplans/:id`
+- [x] `DELETE /api/floorplans/:id`
+- [x] `GET /api/floorplans/:id/export`
+- [x] `POST /api/floorplans/import`
 
 ### Hotspots
-- [ ] `GET /api/hotspots?floorplan_id=:id`
-- [ ] `GET /api/hotspots/:id`
-- [ ] `POST /api/hotspots`
-- [ ] `PATCH /api/hotspots/:id`
-- [ ] `DELETE /api/hotspots/:id`
-- [ ] `POST /api/hotspots/:id/duplicate`
-- [ ] `GET /api/hotspots/:id/rules`
-- [ ] `PUT /api/hotspots/:id/rules` (replace all rules for hotspot)
+- [x] `GET /api/hotspots?floorplan_id=:id`
+- [x] `GET /api/hotspots/:id`
+- [x] `POST /api/hotspots`
+- [x] `PATCH /api/hotspots/:id`
+- [x] `DELETE /api/hotspots/:id`
+- [x] `POST /api/hotspots/:id/duplicate`
+- [x] `GET /api/hotspots/:id/rules`
+- [x] `PUT /api/hotspots/:id/rules` (replace all rules for hotspot)
 
 ### Assets
-- [ ] `POST /api/assets/upload`
-- [ ] `GET /api/assets`
-- [ ] `GET /api/assets/:id`
-- [ ] `GET /api/assets/:id/file`
-- [ ] `DELETE /api/assets/:id`
+- [x] `POST /api/assets/upload`
+- [x] `GET /api/assets`
+- [x] `GET /api/assets/:id`
+- [x] `GET /api/assets/:id/file`
+- [x] `DELETE /api/assets/:id`
 
 ### Home Assistant Proxy
-- [ ] `GET /api/ha/status`
-- [ ] `GET /api/ha/entities`
-- [ ] `GET /api/ha/entities/:entity_id`
-- [ ] `GET /api/ha/services`
-- [ ] `POST /api/ha/services/:domain/:service`
-- [ ] `GET /api/ha/states` (bulk current states)
+- [x] `GET /api/ha/status`
+- [x] `GET /api/ha/entities`
+- [x] `GET /api/ha/entities/:entity_id`
+- [x] `GET /api/ha/services`
+- [x] `POST /api/ha/services/:domain/:service`
+- [x] `GET /api/ha/states` (bulk current states)
 
 ### Live State
-- [ ] WebSocket endpoint or SSE stream: `GET /api/state/stream`
-- [ ] Push `entity_state_changed` events to subscribed clients
-- [ ] Handle client reconnect cleanly
+- [x] WebSocket endpoint or SSE stream: `GET /api/state/stream`
+- [x] Push `entity_state_changed` events to subscribed clients
+- [x] Handle client reconnect cleanly
 
 ### Settings
-- [ ] `GET /api/settings`
-- [ ] `PUT /api/settings/:key`
+- [x] `GET /api/settings`
+- [x] `PUT /api/settings/:key`
 
 ### Revisions
-- [ ] `GET /api/revisions?entity_type=&entity_id=`
+- [x] `GET /api/revisions?entity_type=&entity_id=`
 
 ---
 
 ## Frontend Pages & Views — Full Checklist
 
 ### Login Page (`/login`)
-- [ ] Email + password form
-- [ ] Zod validation
-- [ ] Show error on bad credentials
-- [ ] Redirect to dashboard on success
-- [ ] Prevent access if already logged in
+- [x] Email + password form
+- [x] Zod validation
+- [x] Show error on bad credentials
+- [x] Redirect to dashboard on success
 
 ### Presentation Dashboard Page (`/`)
-- [ ] Load default dashboard + floorplan
-- [ ] Render floorplan + hotspot overlay
-- [ ] Live entity state updates
-- [ ] Fullscreen layout
-- [ ] Touch-friendly hotspot interactions
-- [ ] Connection status indicator
-- [ ] Inactivity dimming (Phase 7)
+- [x] Load default dashboard + floorplan
+- [x] Render floorplan + hotspot overlay
+- [x] Live entity state updates
+- [x] Fullscreen layout
+- [x] Touch-friendly hotspot interactions
+- [x] Connection status indicator
+- [x] Inactivity dimming (Phase 7)
 
 ### Editor / Admin Page (`/admin`)
-- [ ] Edit mode toolbar (add hotspot, save, revert, preview toggle)
-- [ ] Floorplan canvas with hotspot overlays
-- [ ] Hotspot selection and drag handles
-- [ ] Config panel sidebar
-- [ ] Entity picker integration
-- [ ] State rule editor
-- [ ] Asset selector integration
+- [x] Edit mode toolbar (add hotspot, save, revert, preview toggle)
+- [x] Floorplan canvas with hotspot overlays
+- [x] Hotspot selection and drag handles
+- [x] Config panel sidebar
+- [x] Entity picker integration
+- [x] State rule editor
+- [x] Asset selector integration
 
 ### Settings Page (`/admin/settings`)
-- [ ] HA connection config (read-only display of connection status)
-- [ ] Theme setting
-- [ ] Inactivity timeout setting
-- [ ] PIN lock setting
-- [ ] Default dashboard setting
+- [x] HA connection config (read-only display of connection status)
+- [x] Theme setting
+- [x] PIN lock setting
 
 ### Asset Manager (`/admin/assets`)
-- [ ] Asset grid with thumbnails
-- [ ] Upload UI
-- [ ] Delete with confirmation
+- [x] Asset grid with thumbnails
+- [x] Upload UI
+- [x] Delete with confirmation
 
 ### Dashboard Manager (`/admin/dashboards`)
-- [ ] List dashboards
-- [ ] Create / edit / delete
-- [ ] Set default
-- [ ] Manage floorplans per dashboard
+- [x] List dashboards
+- [x] Create / edit / delete
+- [x] Set default
+- [x] Manage floorplans per dashboard
 
 ---
 
 ## Home Assistant Integration Layer — Full Checklist
 
 ### `packages/ha-client`
-- [ ] `HaRestClient`: typed REST calls using `HA_BASE_URL` + `HA_TOKEN`
-  - [ ] `getStates()` — all entity states
-  - [ ] `getState(entity_id)` — single entity state
-  - [ ] `getServices()` — all service definitions
-  - [ ] `callService(domain, service, data)` — call HA service
-- [ ] `HaWebSocketClient`: typed WebSocket connection to HA
-  - [ ] Authenticate on connect
-  - [ ] `subscribeStateChanged(callback)` — subscribe to state_changed events
+- [x] `HaRestClient`: typed REST calls using `HA_BASE_URL` + `HA_TOKEN`
+  - [x] `getStates()` — all entity states
+  - [x] `getState(entity_id)` — single entity state
+  - [x] `getServices()` — all service definitions
+  - [x] `callService(domain, service, data)` — call HA service
+- [x] `HaWebSocketClient`: typed WebSocket connection to HA
+  - [x] Authenticate on connect
+  - [x] `subscribeStateChanged(callback)` — subscribe to state_changed events
   - [ ] `unsubscribe(subscription_id)`
-  - [ ] Auto-reconnect with exponential backoff
-  - [ ] Emit `connected`, `disconnected`, `state_changed` events
-- [ ] `EntityStateNormalizer`: convert raw HA state objects to internal `EntityState` type
-- [ ] Never expose `HA_TOKEN` to frontend
+  - [x] Auto-reconnect with exponential backoff
+  - [x] Emit `connected`, `disconnected`, `state_changed` events
+- [x] `EntityStateNormalizer`: convert raw HA state objects to internal `EntityState` type
+- [x] Never expose `HA_TOKEN` to frontend
 
 ### Backend HA Service Layer (`apps/api/src/services/ha.ts`)
-- [ ] Singleton that manages HA WS and REST clients
-- [ ] On startup: connect WS, subscribe to all state changes
-- [ ] Maintain in-memory entity state cache
-- [ ] Broadcast state changes to frontend clients
-- [ ] Expose `callService`, `getEntities`, `getServices` to API routes
+- [x] Singleton that manages HA WS and REST clients
+- [x] On startup: connect WS, subscribe to all state changes
+- [x] Maintain in-memory entity state cache
+- [x] Broadcast state changes to frontend clients
+- [x] Expose `callService`, `getEntities`, `getServices` to API routes
 
 ---
 
 ## Documentation — Full Checklist
 
 ### Files to Create
-- [ ] `README.md` (project root)
-  - [ ] What the app does
-  - [ ] Architecture overview
-  - [ ] Prerequisites
-  - [ ] Local setup steps
-  - [ ] Docker Compose usage
-  - [ ] Environment variables
-  - [ ] Home Assistant configuration required
-  - [ ] Testing instructions
-  - [ ] Production deployment notes
-- [ ] `docs/architecture.md` — system architecture, component diagram, data flow
-- [ ] `docs/development.md` — local dev setup, scripts, adding new features
-- [ ] `docs/deployment.md` — Docker Compose production deployment, env vars
-- [ ] `docs/homeassistant-integration.md` — how HA integration works, WS protocol, security model
-- [ ] `docs/extending-hotspots.md` — step-by-step guide to adding a new hotspot type
+- [x] `README.md` (project root)
+  - [x] What the app does
+  - [x] Architecture overview
+  - [x] Prerequisites
+  - [x] Local setup steps
+  - [x] Docker Compose usage
+  - [x] Environment variables
+  - [x] Home Assistant configuration required
+  - [x] Testing instructions
+  - [x] Production deployment notes
+- [x] `docs/architecture.md` — system architecture, component diagram, data flow
+- [x] `docs/development.md` — local dev setup, scripts, adding new features
+- [x] `docs/deployment.md` — Docker Compose production deployment, env vars
+- [x] `docs/homeassistant-integration.md` — how HA integration works, WS protocol, security model
+- [x] `docs/extending-hotspots.md` — step-by-step guide to adding a new hotspot type
 
 ### Code Documentation
-- [ ] JSDoc comments on public functions in `packages/shared`
-- [ ] Schema documentation on Prisma models
-- [ ] Inline comments for non-obvious state rule engine logic
-- [ ] README in each package (`apps/web`, `apps/api`, `packages/*`)
+- [x] JSDoc comments on public functions in `packages/shared`
+- [x] Schema documentation on Prisma models
+- [x] Inline comments for non-obvious state rule engine logic
+- [x] README in each package (`apps/web`, `apps/api`, `packages/shared`, `packages/ha-client`)
 
 ---
 
@@ -564,12 +559,6 @@
 - [ ] No DB writes without proper error handling and rollback
 - [ ] Safe migrations: additive only, avoid destructive schema changes without care
 
-### Accessibility
-- [ ] Sufficient color contrast in presentation mode
-- [ ] Large touch targets (min 44pt) in presentation mode
-- [ ] Keyboard navigation in admin/edit mode
-- [ ] Semantic HTML for form controls and buttons
-
 ---
 
 ## Nice-to-Have (Low Priority / Backlog)
@@ -581,7 +570,4 @@
 - [ ] Animated device effects (e.g. fan spinning, TV glow)
 - [ ] WebSocket broadcast optimization (only push changed entities to subscribers)
 - [ ] Audit trail UI (view revision history in admin)
-- [ ] Guided Access compatibility notes for iPad kiosk setup
-- [ ] Floorplan zoom/pan in admin mode
-- [ ] Auto-hide edit controls in presentation mode
 - [ ] Ambient/screensaver mode with clock or weather widget

@@ -1,6 +1,6 @@
 # Extending Hotspots
 
-This guide explains how to add a new hotspot type to HomePlan HA Dashboard.
+This guide explains how to add a new hotspot type to floorplan-ha.
 The system uses a **registry pattern** — each hotspot type self-registers and
 requires no changes to the core rendering or editor infrastructure.
 
@@ -24,6 +24,8 @@ All types live in `apps/web/src/hotspots/renderers/` and are registered in
 
 ## Step-by-step: Adding a new hotspot type
 
+This example adds a hypothetical `energy_meter` type that displays current power draw from a sensor entity.
+
 ### 1. Define a config interface in `packages/shared`
 
 Open `packages/shared/src/types.ts` and add a typed interface for your
@@ -31,9 +33,10 @@ hotspot's configuration:
 
 ```ts
 // packages/shared/src/types.ts
-export interface WeatherConfig {
-  unit: "celsius" | "fahrenheit";
+export interface EnergyMeterConfig {
+  unit: "W" | "kW";
   showIcon: boolean;
+  warningThreshold: number | null; // watts — null means no warning
 }
 ```
 
@@ -47,8 +50,15 @@ export type HotspotType =
   | "state_icon"
   | "badge"
   | "scene"
+  | "blind"
+  | "bins"
   | "custom"
-  | "weather";  // ← add here
+  | "weather"
+  | "temperature_gauge"
+  | "windrose"
+  | "battery"
+  | "clock"
+  | "energy_meter";  // ← add here
 ```
 
 And include it in the `HotspotConfig` union:
@@ -61,34 +71,45 @@ export type HotspotConfig =
   | StateIconConfig
   | BadgeConfig
   | SceneConfig
-  | WeatherConfig  // ← add here
+  | BlindConfig
+  | BinsConfig
+  | WeatherConfig
+  | TemperatureGaugeConfig
+  | WindroseConfig
+  | ClockConfig
+  | EnergyMeterConfig  // ← add here
   | Record<string, unknown>;
 ```
 
 ### 2. Create a Renderer component
 
-Create `apps/web/src/hotspots/renderers/WeatherHotspot.tsx`:
+Create `apps/web/src/hotspots/renderers/EnergyMeterHotspot.tsx`:
 
 ```tsx
-import type { WeatherConfig } from "@floorplan-ha/shared";
+import type { EnergyMeterConfig } from "@floorplan-ha/shared";
 import type { HotspotRendererProps } from "../types.ts";
 
-export function WeatherHotspot({ hotspot, entityState, ruleResult }: HotspotRendererProps) {
-  const config = hotspot.configJson as WeatherConfig;
+export function EnergyMeterHotspot({ hotspot, entityState, ruleResult }: HotspotRendererProps) {
+  const config = hotspot.configJson as EnergyMeterConfig;
   const stateStyle = ruleResult?.styleOverrides ?? {};
 
-  const temperature = entityState?.attributes["temperature"] as number | undefined;
-  const unit = config.unit === "fahrenheit"
-    ? `${temperature ? (temperature * 9/5 + 32).toFixed(1) : "—"} °F`
-    : `${temperature?.toFixed(1) ?? "—"} °C`;
+  const watts = entityState ? parseFloat(entityState.state) : null;
+  const display = watts === null
+    ? "—"
+    : config.unit === "kW"
+      ? `${(watts / 1000).toFixed(2)} kW`
+      : `${watts.toFixed(0)} W`;
+
+  const isWarning = config.warningThreshold !== null && watts !== null && watts > config.warningThreshold;
 
   return (
     <div
-      className="flex h-full w-full items-center justify-center"
-      style={{ color: stateStyle.color ?? "#ffffff" }}
+      className="flex h-full w-full items-center justify-center gap-1"
+      style={{ color: stateStyle.color ?? (isWarning ? "#f87171" : "#ffffff") }}
+      aria-label={hotspot.name}
     >
-      {config.showIcon && <span aria-hidden="true">🌡 </span>}
-      <span className="text-sm font-medium">{unit}</span>
+      {config.showIcon && <span aria-hidden="true">⚡</span>}
+      <span className="text-sm font-medium tabular-nums">{display}</span>
     </div>
   );
 }
@@ -108,20 +129,21 @@ export function WeatherHotspot({ hotspot, entityState, ruleResult }: HotspotRend
 Open `apps/web/src/hotspots/registry.ts` and add:
 
 ```ts
-import { WeatherHotspot } from "./renderers/WeatherHotspot.tsx";
+import { EnergyMeterHotspot } from "./renderers/EnergyMeterHotspot.tsx";
 
 // ... at the bottom of the built-in registrations:
 
 registerHotspotType({
-  type: "weather",
-  label: "Weather / Temperature",
-  description: "Display temperature or weather condition from a climate or sensor entity",
-  icon: "🌡",
-  Renderer: WeatherHotspot,
+  type: "energy_meter",
+  label: "Energy Meter",
+  description: "Display live power draw from a sensor entity",
+  icon: "⚡",
+  Renderer: EnergyMeterHotspot,
   defaultConfig: {
-    unit: "celsius",
+    unit: "W",
     showIcon: true,
-  },
+    warningThreshold: null,
+  } satisfies EnergyMeterConfig,
 });
 ```
 
@@ -134,19 +156,28 @@ Open `apps/web/src/components/editor/ConfigPanel.tsx` and add a branch to the
 `StyleTab` component:
 
 ```tsx
-if (hotspotType === "weather") {
-  const c = config as WeatherConfig;
+if (hotspotType === "energy_meter") {
+  const c = config as EnergyMeterConfig;
   return (
     <div className="flex flex-col gap-3">
-      <Field label="Temperature unit">
+      <Field label="Unit">
         <select
           value={c.unit}
-          onChange={(e) => onChange({ ...c, unit: e.target.value as WeatherConfig["unit"] })}
+          onChange={(e) => onChange({ ...c, unit: e.target.value as EnergyMeterConfig["unit"] })}
           className="input-field"
         >
-          <option value="celsius">Celsius (°C)</option>
-          <option value="fahrenheit">Fahrenheit (°F)</option>
+          <option value="W">Watts (W)</option>
+          <option value="kW">Kilowatts (kW)</option>
         </select>
+      </Field>
+      <Field label="Warning threshold (W)">
+        <input
+          type="number"
+          value={c.warningThreshold ?? ""}
+          onChange={(e) => onChange({ ...c, warningThreshold: e.target.value ? Number(e.target.value) : null })}
+          className="input-field"
+          placeholder="None"
+        />
       </Field>
       <label className="flex items-center gap-2 text-[11px] text-gray-400">
         <input
@@ -155,7 +186,7 @@ if (hotspotType === "weather") {
           onChange={(e) => onChange({ ...c, showIcon: e.target.checked })}
           className="rounded"
         />
-        Show thermometer icon
+        Show icon
       </label>
     </div>
   );
@@ -164,17 +195,18 @@ if (hotspotType === "weather") {
 
 ### 5. Add a migration function (if schema changes later)
 
-If you later change the shape of `WeatherConfig`, provide a `migrate` function
+If you later change the shape of `EnergyMeterConfig`, provide a `migrate` function
 in the registry entry to upgrade persisted records:
 
 ```ts
 registerHotspotType({
-  type: "weather",
+  type: "energy_meter",
   // ...
   migrate(raw) {
     return {
-      unit: (raw.unit as string) ?? "celsius",
+      unit: (raw.unit as string) ?? "W",
       showIcon: (raw.showIcon as boolean) ?? true,
+      warningThreshold: (raw.warningThreshold as number | null) ?? null,
     };
   },
 });
@@ -190,12 +222,19 @@ not already match the current default config shape.
 | Type | File | Description |
 |---|---|---|
 | `action` | `ActionHotspot.tsx` | Tap/hold/double-tap to call HA services |
-| `text` | `TextHotspot.tsx` | Display entity state value with template |
+| `text` | `TextHotspot.tsx` | Display entity state value with `{{state}}` template |
 | `state_image` | `StateImageHotspot.tsx` | Show different images based on on/off state |
-| `state_icon` | `StateIconHotspot.tsx` | MDI icon with state-driven color and optional badge |
-| `badge` | `BadgeHotspot.tsx` | Pill label with configurable state-to-text mapping |
-| `scene` | `SceneHotspot.tsx` | Single-tap button for HA scene/script |
-| `custom` | `CustomHotspot.tsx` | Placeholder — meant to be replaced via the registry |
+| `state_icon` | `StateIconHotspot.tsx` | MDI icon with state-driven color and optional battery badge |
+| `badge` | `BadgeHotspot.tsx` | Pill label with configurable state-to-text and state-to-color mapping |
+| `scene` | `SceneHotspot.tsx` | Single-tap button for HA scene or script |
+| `blind` | `BlindHotspot.tsx` | Cover/blind position control with drag slider; long-press for group control |
+| `bins` | `BinsHotspot.tsx` | Bin day reminder driven by a HA calendar entity |
+| `weather` | `WeatherHotspot.tsx` | Full weather card with 5-day forecast, UV index, hourly breakdown |
+| `temperature_gauge` | `TemperatureGaugeHotspot.tsx` | Circular temperature badge; drives the floorplan heatmap overlay |
+| `windrose` | `WindroseHotspot.tsx` | Compass rose showing live wind direction and speed |
+| `battery` | `BatteryHotspot.tsx` | Aggregate battery health indicator; tap to show individual levels on floorplan |
+| `clock` | `ClockHotspot.tsx` | Analog or digital clock with timezone and date support |
+| `custom` | `CustomHotspot.tsx` | Silent placeholder in presentation mode; visible dashed outline in edit mode |
 
 ---
 
@@ -213,3 +252,5 @@ not already match the current default config shape.
 - **Edit mode placeholder**: if your renderer has no visible UI in presentation
   mode (e.g. a pure overlay), render a visible placeholder when `isEditMode`
   is `true` so the hotspot can be selected and configured.
+- **Type safety**: use `satisfies YourConfig` on the `defaultConfig` object to
+  catch typos and missing fields at build time.

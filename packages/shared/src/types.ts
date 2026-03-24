@@ -59,7 +59,8 @@ export type HotspotType =
   | "weather"
   | "temperature_gauge"
   | "windrose"
-  | "battery";
+  | "battery"
+  | "clock";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -249,6 +250,36 @@ export interface WindroseConfig {
   labelSize: number;
 }
 
+export interface ClockConfig {
+  /** "analog" | "digital" */
+  clockStyle: "analog" | "digital";
+  /** Show seconds hand (analog) or :SS digits (digital) */
+  showSeconds: boolean;
+  /** 12 or 24 hour format — digital only */
+  hourFormat: "12" | "24";
+  /** Show date line (e.g. "Mon, 24 Mar") */
+  showDate: boolean;
+  /** CSS color for hands/text. Null = white. */
+  color: string | null;
+  /** CSS background color, "transparent" for no background, or null for the default style. */
+  backgroundColor: string | null;
+  /**
+   * Font size in px for the time digits (digital) or date label (analog).
+   * Null = auto-scale with the hotspot size.
+   */
+  fontSize: number | null;
+  /**
+   * IANA timezone identifier (e.g. "America/New_York"). Null = browser local time.
+   * When set, the timezone abbreviation is displayed below the clock.
+   */
+  timezone: string | null;
+  /**
+   * Custom label shown below the clock instead of the auto-derived timezone abbreviation.
+   * E.g. "New York", "Home", "Office". Null = use the abbreviation (or nothing for local time).
+   */
+  timezoneLabel: string | null;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -261,6 +292,7 @@ export type HotspotConfig =
   | WeatherConfig
   | TemperatureGaugeConfig
   | WindroseConfig
+  | ClockConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

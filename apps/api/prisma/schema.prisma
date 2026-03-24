@@ -12,6 +12,8 @@ datasource db {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
+/// An authenticated user account. Passwords are hashed with Argon2id.
+/// Role is either "admin" (full access) or "viewer" (read-only presentation mode).
 model User {
   id                  String    @id @default(uuid())
   email               String    @unique
@@ -29,6 +31,8 @@ model User {
   @@map("users")
 }
 
+/// Email addresses permitted to register. New accounts are rejected unless the
+/// email is present in this table (or the account is created directly by an admin).
 model AllowedEmail {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -45,6 +49,9 @@ enum UserRole {
 
 // ─── Dashboards ───────────────────────────────────────────────────────────────
 
+/// A named dashboard that groups one or more floorplans.
+/// Exactly one dashboard should have isDefault = true; it is loaded on the
+/// root presentation route ("/").
 model Dashboard {
   id          String   @id @default(uuid())
   name        String
@@ -61,6 +68,13 @@ model Dashboard {
 
 // ─── Floorplans ───────────────────────────────────────────────────────────────
 
+/// A floorplan image canvas that belongs to a Dashboard.
+/// imageMode controls which image is shown:
+///   "single"          – always use imageAssetId
+///   "day_night_cycle" – pick from cycleImagesJson arrays based on solar position
+///   "none"            – solid backgroundColor only
+/// heatmapMaskAssetId references a PNG where white pixels mark interior area;
+/// used by temperature_gauge hotspots to draw the radial heat overlay.
 model Floorplan {
   id                  String   @id @default(uuid())
   dashboardId         String   @map("dashboard_id")
@@ -86,6 +100,12 @@ model Floorplan {
 
 // ─── Hotspots ─────────────────────────────────────────────────────────────────
 
+/// An interactive element overlaid on a Floorplan.
+/// Position fields (x, y, width, height) are normalized 0–1 fractions of
+/// the floorplan canvas dimensions so they scale correctly at any resolution.
+/// configJson stores type-specific settings; its shape is defined by the
+/// corresponding *Config interface in packages/shared/src/types.ts.
+/// entityId links to a Home Assistant entity whose live state drives rendering.
 model Hotspot {
   id          String      @id @default(uuid())
   floorplanId String      @map("floorplan_id")
@@ -124,10 +144,15 @@ enum HotspotType {
   temperature_gauge
   windrose
   battery
+  clock
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────
 
+/// A conditional rule that overrides a Hotspot's appearance when its bound
+/// entity matches the condition. Rules are evaluated in ascending priority
+/// order; the first match wins. conditionJson and resultJson are typed by
+/// Condition and RuleResult in packages/shared/src/types.ts.
 model HotspotStateRule {
   id            String   @id @default(uuid())
   hotspotId     String   @map("hotspot_id")
@@ -145,6 +170,11 @@ model HotspotStateRule {
 
 // ─── Assets ───────────────────────────────────────────────────────────────────
 
+/// An uploaded image or icon file. The file itself is stored on disk at
+/// storagePath (within ASSET_STORAGE_PATH). Accepted types: SVG, PNG, WebP,
+/// JPEG, GIF. width and height are populated at upload time for raster images.
+/// Assets may be referenced by Floorplan.imageAssetId, heatmapMaskAssetId,
+/// cycleImagesJson, and hotspot configJson fields.
 model Asset {
   id           String   @id @default(uuid())
   filename     String   @unique
@@ -165,6 +195,8 @@ model Asset {
 
 // ─── App Settings ─────────────────────────────────────────────────────────────
 
+/// Key/value store for application-wide settings (theme, PIN, inactivity
+/// timeout, etc.). valueJson holds any JSON-serialisable value.
 model AppSetting {
   id        String   @id @default(uuid())
   key       String   @unique
@@ -176,6 +208,10 @@ model AppSetting {
 
 // ─── Revision History ─────────────────────────────────────────────────────────
 
+/// Immutable audit log written on every create, update, or delete of a
+/// Hotspot, Floorplan, or Dashboard. beforeJson / afterJson capture the full
+/// record state before and after the change. Indexed on (entityType, entityId)
+/// for efficient per-entity history queries.
 model RevisionHistory {
   id         String          @id @default(uuid())
   entityType String          @map("entity_type")

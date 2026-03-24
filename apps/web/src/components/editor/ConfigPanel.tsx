@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type {
   ActionConfig,
   TextConfig,
@@ -12,6 +12,7 @@ import type {
   TemperatureGaugeConfig,
   WindroseConfig,
   BatteryConfig,
+  ClockConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -120,6 +121,7 @@ export function ConfigPanel({ hotspot }: ConfigPanelProps) {
 
         {activeTab === "entity" && (
           <EntityTab
+            hotspotType={hotspot.type}
             entityId={entityId ?? null}
             onChange={(id) => updateDraft(hotspot.id, { entityId: id })}
           />
@@ -435,7 +437,22 @@ function GeneralTab({ name, x, y, width, height, rotation, zIndex, onChange }: G
 
 // ─── Entity Tab ────────────────────────────────────────────────────────────────
 
-function EntityTab({ entityId, onChange }: { entityId: string | null; onChange: (id: string | null) => void }) {
+function EntityTab({
+  hotspotType,
+  entityId,
+  onChange,
+}: {
+  hotspotType: string;
+  entityId: string | null;
+  onChange: (id: string | null) => void;
+}) {
+  if (hotspotType === "clock") {
+    return (
+      <p className="text-[11px] text-gray-500">
+        The clock reads the browser&apos;s local time — no Home Assistant entity is needed.
+      </p>
+    );
+  }
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[11px] text-gray-500">
@@ -1518,6 +1535,138 @@ function StyleTab({
     );
   }
 
+  if (hotspotType === "clock") {
+    const c = config as unknown as ClockConfig;
+    const clockStyle = c.clockStyle ?? "digital";
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label="Clock style">
+          <div className="flex gap-2">
+            {(["digital", "analog"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => onChange({ ...c, clockStyle: s })}
+                className={[
+                  "flex-1 rounded border py-1 text-xs capitalize transition-colors",
+                  clockStyle === s
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Show seconds">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={c.showSeconds ?? false}
+              onChange={(e) => onChange({ ...c, showSeconds: e.target.checked })}
+              className="accent-accent"
+            />
+            <span className="text-[11px] text-gray-400">
+              {clockStyle === "analog" ? "Show seconds hand" : "Show :SS digits"}
+            </span>
+          </label>
+        </Field>
+        {clockStyle === "digital" && (
+          <Field label="Hour format">
+            <div className="flex gap-2">
+              {(["24", "12"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => onChange({ ...c, hourFormat: f })}
+                  className={[
+                    "flex-1 rounded border py-1 text-xs transition-colors",
+                    (c.hourFormat ?? "24") === f
+                      ? "border-accent bg-accent/20 text-white"
+                      : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                  ].join(" ")}
+                >
+                  {f === "24" ? "24-hour" : "12-hour (AM/PM)"}
+                </button>
+              ))}
+            </div>
+          </Field>
+        )}
+        <Field label="Show date">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={c.showDate ?? false}
+              onChange={(e) => onChange({ ...c, showDate: e.target.checked })}
+              className="accent-accent"
+            />
+            <span className="text-[11px] text-gray-400">Show day and date (e.g. Mon, 24 Mar)</span>
+          </label>
+        </Field>
+        <Field label="Timezone">
+          <TimezonePicker
+            value={c.timezone ?? null}
+            onChange={(tz) => onChange({ ...c, timezone: tz })}
+          />
+        </Field>
+        <Field label="Timezone label">
+          <input
+            type="text"
+            placeholder={c.timezone ? "e.g. New York, Home, Office" : "e.g. Home"}
+            value={c.timezoneLabel ?? ""}
+            onChange={(e) => onChange({ ...c, timezoneLabel: e.target.value || null })}
+            className="input-field"
+          />
+          <p className="text-[11px] text-gray-500">
+            Shown below the clock. Overrides the auto abbreviation (e.g. GMT+2).
+          </p>
+        </Field>
+        <Field label="Font size (px)">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={8}
+              max={200}
+              placeholder="Auto"
+              value={c.fontSize ?? ""}
+              onChange={(e) =>
+                onChange({ ...c, fontSize: e.target.value ? Number(e.target.value) : null })
+              }
+              className="input-field"
+            />
+            {c.fontSize != null && (
+              <button
+                type="button"
+                onClick={() => onChange({ ...c, fontSize: null })}
+                className="shrink-0 rounded border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-gray-400 hover:border-white/20 hover:text-gray-300"
+              >
+                Auto
+              </button>
+            )}
+          </div>
+          <p className="text-[11px] text-gray-500">
+            Leave blank to auto-scale with the hotspot size.
+          </p>
+        </Field>
+        <Field label="Color">
+          <ColorPicker
+            value={c.color ?? null}
+            onChange={(v) => onChange({ ...c, color: v })}
+            nullable
+          />
+        </Field>
+        <Field label="Background">
+          <ColorPicker
+            value={c.backgroundColor ?? null}
+            onChange={(v) => onChange({ ...c, backgroundColor: v })}
+            nullable
+          />
+        </Field>
+      </div>
+    );
+  }
+
   if (hotspotType === "custom") {
     return (
       <p className="text-[11px] text-gray-500">
@@ -1533,6 +1682,124 @@ function StyleTab({
     <p className="text-[11px] text-gray-500">
       No style options available for <strong className="text-white">{hotspotType}</strong>.
     </p>
+  );
+}
+
+// ─── Timezone Picker ───────────────────────────────────────────────────────────
+
+const ALL_TIMEZONES: string[] = (() => {
+  try {
+    return Intl.supportedValuesOf("timeZone");
+  } catch {
+    return [];
+  }
+})();
+
+function TimezonePicker({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (tz: string | null) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return q
+      ? ALL_TIMEZONES.filter((tz) => tz.toLowerCase().includes(q)).slice(0, 80)
+      : ALL_TIMEZONES.slice(0, 80);
+  }, [search]);
+
+  function open() {
+    setSearch("");
+    setIsOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function select(tz: string | null) {
+    onChange(tz);
+    setIsOpen(false);
+    setSearch("");
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={open}
+        className="input-field w-full text-left truncate"
+      >
+        {value ?? <span className="text-gray-500">Local (browser default)</span>}
+      </button>
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-xs"
+          aria-label="Clear timezone"
+        >
+          ✕
+        </button>
+      )}
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute left-0 top-full z-50 mt-1 w-full rounded border border-white/10 bg-gray-900 shadow-xl">
+            <div className="p-1.5 border-b border-white/10">
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Search timezone…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input-field w-full text-xs"
+              />
+            </div>
+            <ul className="max-h-52 overflow-y-auto py-1">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => select(null)}
+                  className={[
+                    "w-full px-3 py-1.5 text-left text-xs transition-colors",
+                    value === null
+                      ? "bg-accent/20 text-white"
+                      : "text-gray-400 hover:bg-white/5 hover:text-gray-200",
+                  ].join(" ")}
+                >
+                  Local (browser default)
+                </button>
+              </li>
+              {filtered.map((tz) => (
+                <li key={tz}>
+                  <button
+                    type="button"
+                    onClick={() => select(tz)}
+                    className={[
+                      "w-full px-3 py-1.5 text-left text-xs transition-colors",
+                      value === tz
+                        ? "bg-accent/20 text-white"
+                        : "text-gray-400 hover:bg-white/5 hover:text-gray-200",
+                    ].join(" ")}
+                  >
+                    {tz}
+                  </button>
+                </li>
+              ))}
+              {search && filtered.length === 0 && (
+                <li className="px-3 py-2 text-xs text-gray-500">No matches</li>
+              )}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

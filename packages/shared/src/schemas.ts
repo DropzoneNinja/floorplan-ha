@@ -95,6 +95,7 @@ export const HotspotTypeSchema = z.enum([
   "temperature_gauge",
   "windrose",
   "battery",
+  "clock",
 ]);
 
 export const TemperatureGaugeConfigSchema = z.object({
@@ -115,6 +116,18 @@ export const WindroseConfigSchema = z.object({
   roseColor: z.string().nullable().default(null),
   labelColor: z.string().nullable().default(null),
   labelSize: z.number().min(4).max(16).default(8),
+});
+
+export const ClockConfigSchema = z.object({
+  clockStyle: z.enum(["analog", "digital"]).default("digital"),
+  showSeconds: z.boolean().default(false),
+  hourFormat: z.enum(["12", "24"]).default("24"),
+  showDate: z.boolean().default(false),
+  color: z.string().nullable().default(null),
+  backgroundColor: z.string().nullable().default(null),
+  fontSize: z.number().int().positive().nullable().default(null),
+  timezone: z.string().nullable().default(null),
+  timezoneLabel: z.string().nullable().default(null),
 });
 
 export const CreateHotspotSchema = z.object({

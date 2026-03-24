@@ -1,4 +1,4 @@
-import type { HotspotType, WindroseConfig } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig, ClockConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -13,6 +13,7 @@ import { WeatherHotspot } from "./renderers/WeatherHotspot.tsx";
 import { TemperatureGaugeHotspot } from "./renderers/TemperatureGaugeHotspot.tsx";
 import { WindroseHotspot } from "./renderers/WindroseHotspot.tsx";
 import { BatteryHotspot } from "./renderers/BatteryHotspot.tsx";
+import { ClockHotspot } from "./renderers/ClockHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -213,6 +214,25 @@ registerHotspotType({
     items: [],
     backgroundColor: null,
   },
+});
+
+registerHotspotType({
+  type: "clock",
+  label: "Clock",
+  description: "Displays the current time as an analog or digital clock — no HA entity needed",
+  icon: "🕐",
+  Renderer: ClockHotspot,
+  defaultConfig: {
+    clockStyle: "digital",
+    showSeconds: false,
+    hourFormat: "24",
+    showDate: false,
+    color: null,
+    backgroundColor: null,
+    fontSize: null,
+    timezone: null,
+    timezoneLabel: null,
+  } satisfies ClockConfig,
 });
 
 registerHotspotType({
