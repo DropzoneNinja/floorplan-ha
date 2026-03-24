@@ -123,6 +123,7 @@ enum HotspotType {
   weather
   temperature_gauge
   windrose
+  battery
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────

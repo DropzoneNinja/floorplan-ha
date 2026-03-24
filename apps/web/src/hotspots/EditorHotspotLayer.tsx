@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState, type RefObject } from "react";
 import { HotspotRenderer } from "./HotspotRenderer.tsx";
 import { useEditorStore, applyDraft } from "../store/editor.ts";
+import { useBatteryPlacementStore } from "../store/battery-placement.ts";
 import type { HotspotRaw } from "./types.ts";
 import type { ImageFitBounds } from "./useImageFitBounds.ts";
 import { FULL_BOUNDS } from "./useImageFitBounds.ts";
@@ -28,6 +29,7 @@ interface EditorHotspotLayerProps {
  */
 export function EditorHotspotLayer({ hotspots, containerRef, highlightedId, imageBounds = FULL_BOUNDS }: EditorHotspotLayerProps) {
   const { selectedId, selectHotspot, isPreviewMode } = useEditorStore();
+  const isPlacing = useBatteryPlacementStore((s) => s.placement !== null);
 
   const handleLayerPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -41,7 +43,7 @@ export function EditorHotspotLayer({ hotspots, containerRef, highlightedId, imag
     <div
       className="absolute inset-0"
       // Layer must receive pointer events so clicks on the background deselect
-      style={{ pointerEvents: isPreviewMode ? "none" : "auto" }}
+      style={{ pointerEvents: isPreviewMode || isPlacing ? "none" : "auto" }}
       onPointerDown={handleLayerPointerDown}
     >
       {/* Sub-div sized to the actual rendered image area so hotspot 0–1 coords

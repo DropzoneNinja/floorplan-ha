@@ -12,6 +12,7 @@ import { CustomHotspot } from "./renderers/CustomHotspot.tsx";
 import { WeatherHotspot } from "./renderers/WeatherHotspot.tsx";
 import { TemperatureGaugeHotspot } from "./renderers/TemperatureGaugeHotspot.tsx";
 import { WindroseHotspot } from "./renderers/WindroseHotspot.tsx";
+import { BatteryHotspot } from "./renderers/BatteryHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -198,6 +199,20 @@ registerHotspotType({
     labelColor: null,
     labelSize: 8,
   } satisfies WindroseConfig,
+});
+
+registerHotspotType({
+  type: "battery",
+  label: "Battery Overview",
+  description: "Shows aggregate battery health; click to reveal individual battery levels across the floorplan",
+  icon: "🔋",
+  Renderer: BatteryHotspot,
+  defaultConfig: {
+    lowThreshold: 30,
+    mediumThreshold: 50,
+    items: [],
+    backgroundColor: null,
+  },
 });
 
 registerHotspotType({

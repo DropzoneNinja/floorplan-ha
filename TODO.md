@@ -579,8 +579,6 @@
 - [ ] Presence-aware dashboard behavior (show/hide hotspots based on who is home)
 - [ ] Room/zone grouping for hotspots
 - [ ] Animated device effects (e.g. fan spinning, TV glow)
-- [ ] Day/night visual variants
-- [ ] Role-based permissions beyond admin/viewer
 - [ ] WebSocket broadcast optimization (only push changed entities to subscribers)
 - [ ] Audit trail UI (view revision history in admin)
 - [ ] Guided Access compatibility notes for iPad kiosk setup

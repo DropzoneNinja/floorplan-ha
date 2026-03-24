@@ -1,6 +1,10 @@
 Battery display.
 
+Water tank
 
+AI?
+
+Cameras?
 
 
 

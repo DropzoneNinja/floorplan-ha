@@ -58,7 +58,8 @@ export type HotspotType =
   | "custom"
   | "weather"
   | "temperature_gauge"
-  | "windrose";
+  | "windrose"
+  | "battery";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -156,6 +157,30 @@ export interface BlindConfig {
   batteryEntityId?: string | null;
   /** Battery % below which the low-battery icon is shown. Defaults to 40. */
   lowBatteryThreshold?: number | null;
+}
+
+export interface BatteryItem {
+  /** Stable UUID used as React key */
+  id: string;
+  /** Display name shown below the icon in the overlay */
+  name: string;
+  /** HA entity ID for the battery sensor, e.g. "sensor.motion_battery" */
+  entityId: string;
+  /** Normalized 0–1 horizontal position on the floorplan */
+  x: number;
+  /** Normalized 0–1 vertical position on the floorplan */
+  y: number;
+}
+
+export interface BatteryConfig {
+  /** Battery % below which the item is shown as red. Default 30. */
+  lowThreshold: number;
+  /** Battery % below which the item is shown as yellow. Default 50. */
+  mediumThreshold: number;
+  /** List of battery locations placed on the floorplan */
+  items: BatteryItem[];
+  /** CSS background color, "transparent" for no background, or null for the default style. */
+  backgroundColor: string | null;
 }
 
 export interface BinsConfig {

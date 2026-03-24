@@ -37,7 +37,7 @@ export function TemperatureGaugeHotspot({ hotspot, entityState, ruleResult, isEd
   const handleClick = (e: React.MouseEvent) => {
     if (isEditMode) return;
     e.stopPropagation();
-    toggle();
+    toggle(hotspot.zIndex);
   };
 
   // ── Minimal mode — temperature text only ───────────────────────────────────

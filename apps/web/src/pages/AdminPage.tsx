@@ -4,11 +4,14 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useStateStream } from "../hooks/use-state-stream.ts";
 import { useAuthStore } from "../store/auth.ts";
 import { useEditorStore, applyDraft } from "../store/editor.ts";
+import { useBatteryPlacementStore } from "../store/battery-placement.ts";
 import { useToastStore } from "../store/toast.ts";
 import { api } from "../api/client.ts";
 import { EditorHotspotLayer } from "../hotspots/EditorHotspotLayer.tsx";
+import { BatteryEditorLayer } from "../hotspots/BatteryEditorLayer.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
 import { HeatmapLayer } from "../hotspots/HeatmapLayer.tsx";
+import { BatteryOverlayLayer } from "../hotspots/BatteryOverlayLayer.tsx";
 import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 import { ConfigPanel } from "../components/editor/ConfigPanel.tsx";
 import { HotspotListPanel } from "../components/editor/HotspotListPanel.tsx";
@@ -17,7 +20,7 @@ import { TypePickerModal } from "../components/editor/TypePickerModal.tsx";
 import { getAllHotspotTypes } from "../hotspots/registry.ts";
 import { useSolarImage } from "../hooks/use-solar-image.ts";
 import type { FloorplanWithHotspotsRaw, HotspotRaw, StateRuleRaw } from "../hotspots/types.ts";
-import type { HotspotType, CycleImages } from "@floorplan-ha/shared";
+import type { HotspotType, CycleImages, BatteryConfig } from "@floorplan-ha/shared";
 
 /**
  * Admin / editor page.
@@ -642,14 +645,62 @@ function FloorplanCanvas({
   const imageRef = useRef<HTMLImageElement>(null);
   const imageBounds = useImageFitBounds(canvasRef, imageRef, floorplan.imageStretch ?? false);
 
+  const { placement, cancel } = useBatteryPlacementStore();
+  const { getDraft, updateDraft } = useEditorStore();
+  const isPlacing = isEditMode && placement !== null;
+
+  // Cancel placement on Escape
+  useEffect(() => {
+    if (!isPlacing) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") cancel(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isPlacing, cancel]);
+
+  const handleCanvasClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!placement || !canvasRef.current) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const relX = (e.clientX - rect.left) / rect.width;
+      const relY = (e.clientY - rect.top) / rect.height;
+      const x = Math.max(0, Math.min(1, (relX - imageBounds.x) / imageBounds.width));
+      const y = Math.max(0, Math.min(1, (relY - imageBounds.y) / imageBounds.height));
+
+      // Find the target hotspot and update its config
+      const hotspot = floorplan.hotspots.find((h) => h.id === placement.hotspotId);
+      if (!hotspot) { cancel(); return; }
+      const draft = getDraft(placement.hotspotId);
+      const baseConfig = (draft.configJson ?? hotspot.configJson) as unknown as BatteryConfig;
+      const items = baseConfig.items ?? [];
+
+      let updatedItems;
+      if (placement.repositioningItemId) {
+        updatedItems = items.map((it) =>
+          it.id === placement.repositioningItemId ? { ...it, x, y } : it,
+        );
+      } else if (placement.pendingItem) {
+        updatedItems = [...items, { ...placement.pendingItem, x, y }];
+      } else {
+        cancel();
+        return;
+      }
+
+      updateDraft(placement.hotspotId, { configJson: { ...baseConfig, items: updatedItems } });
+      cancel();
+    },
+    [placement, canvasRef, imageBounds, floorplan.hotspots, getDraft, updateDraft, cancel],
+  );
+
   return (
     <div
       ref={canvasRef as React.RefObject<HTMLDivElement>}
       className="relative overflow-hidden"
+      onClick={isPlacing ? handleCanvasClick : undefined}
       style={{
         aspectRatio,
         width: "100%",
         maxWidth: "100%",
+        cursor: isPlacing ? "crosshair" : undefined,
         maxHeight: "100%",
         // Subtle grid in edit mode so the canvas is clearly identifiable
         backgroundImage: isEditMode && !isPreviewMode
@@ -658,6 +709,28 @@ function FloorplanCanvas({
         backgroundSize: "24px 24px",
       }}
     >
+      {/* Placement mode banner */}
+      {isPlacing && (
+        <div
+          className="absolute inset-x-0 top-2 z-50 flex justify-center px-4"
+          style={{ pointerEvents: "none" }}
+        >
+          <div
+            className="flex items-center gap-3 rounded-lg bg-amber-500/90 px-4 py-2 text-[12px] font-medium text-black shadow-lg"
+            style={{ pointerEvents: "auto" }}
+          >
+            <span>Click to place battery indicator · Esc to cancel</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); cancel(); }}
+              className="rounded px-1.5 py-0.5 hover:bg-black/10"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {imageUrl ? (
         <img
           ref={imageRef}
@@ -686,14 +759,26 @@ function FloorplanCanvas({
         />
       )}
 
+      {/* Battery overlay — only in preview mode, not edit mode */}
+      {!isEditMode && (
+        <BatteryOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
+      )}
+
       {/* Hotspot overlay */}
       {isEditMode ? (
-        <EditorHotspotLayer
-          hotspots={floorplan.hotspots}
-          containerRef={canvasRef}
-          highlightedId={highlightedId ?? null}
-          imageBounds={imageBounds}
-        />
+        <>
+          <EditorHotspotLayer
+            hotspots={floorplan.hotspots}
+            containerRef={canvasRef}
+            highlightedId={highlightedId ?? null}
+            imageBounds={imageBounds}
+          />
+          <BatteryEditorLayer
+            hotspots={floorplan.hotspots}
+            containerRef={canvasRef}
+            imageBounds={imageBounds}
+          />
+        </>
       ) : (
         <HotspotLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
       )}

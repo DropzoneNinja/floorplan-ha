@@ -29,6 +29,7 @@ const CANVAS_H = 1080;
  */
 export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS }: HeatmapLayerProps) {
   const isVisible = useHeatmapStore((s) => s.isVisible);
+  const triggeredByZIndex = useHeatmapStore((s) => s.triggeredByZIndex);
   const hide = useHeatmapStore((s) => s.hide);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const maskCanvasRef = useRef<OffscreenCanvas | null>(null);
@@ -182,6 +183,7 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
     <div
       className="pointer-events-none absolute inset-0"
       aria-hidden="true"
+      style={{ zIndex: triggeredByZIndex - 1 }}
     >
       <div
         onClick={(e) => {
