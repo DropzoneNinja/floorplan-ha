@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { ClockConfig } from "@floorplan-ha/shared";
 import type { HotspotRendererProps } from "../types.ts";
 
@@ -110,12 +110,15 @@ function AnalogFace({
   showSeconds,
   color,
   tz,
+  isDaytime,
 }: {
   date: Date;
   showSeconds: boolean;
   color: string;
   tz: string | null;
+  isDaytime: boolean;
 }) {
+  const moonMaskId = useId();
   const cx = 50;
   const cy = 50;
   const r = 46;
@@ -171,8 +174,18 @@ function AnalogFace({
     };
   });
 
+  // Icon sits at the midpoint between centre (y=50) and 12 o'clock (y=4)
+  const iconCx = cx;
+  const iconCy = 27;
+
   return (
     <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
+      <defs>
+        <mask id={moonMaskId}>
+          <rect width="100" height="100" fill="white" />
+          <circle cx={iconCx + 4} cy={iconCy} r="6.5" fill="black" />
+        </mask>
+      </defs>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="1.5" opacity="0.4" />
       {ticks.map((t, i) => (
         <line
@@ -190,6 +203,60 @@ function AnalogFace({
         <line x1={cx} y1={cy} x2={secEnd.x} y2={secEnd.y} stroke="#f87171" strokeWidth="1.5" strokeLinecap="round" />
       )}
       <circle cx={cx} cy={cy} r="2.5" fill={color} />
+      {/* Sun/moon icon — midpoint between centre and 12 o'clock */}
+      {isDaytime ? (
+        <g>
+          {Array.from({ length: 8 }, (_, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            return (
+              <line
+                key={i}
+                x1={iconCx + 7 * Math.cos(a)} y1={iconCy + 7 * Math.sin(a)}
+                x2={iconCx + 10 * Math.cos(a)} y2={iconCy + 10 * Math.sin(a)}
+                stroke="#FCD34D" strokeWidth="1.5" strokeLinecap="round"
+              />
+            );
+          })}
+          <circle cx={iconCx} cy={iconCy} r="5.5" fill="#FCD34D" />
+        </g>
+      ) : (
+        <circle cx={iconCx} cy={iconCy} r="8" fill="#93C5FD" mask={`url(#${moonMaskId})`} />
+      )}
+    </svg>
+  );
+}
+
+// ─── Day/night icon (digital mode) ────────────────────────────────────────────
+
+function DayNightIcon({ isDaytime, size }: { isDaytime: boolean; size: string }) {
+  const maskId = useId();
+  if (isDaytime) {
+    return (
+      <svg viewBox="0 0 20 20" style={{ width: size, height: size, flexShrink: 0 }} aria-label="daytime" fill="none">
+        {Array.from({ length: 8 }, (_, i) => {
+          const a = (i / 8) * Math.PI * 2;
+          return (
+            <line
+              key={i}
+              x1={10 + 7 * Math.cos(a)} y1={10 + 7 * Math.sin(a)}
+              x2={10 + 9.5 * Math.cos(a)} y2={10 + 9.5 * Math.sin(a)}
+              stroke="#FCD34D" strokeWidth="1.5" strokeLinecap="round"
+            />
+          );
+        })}
+        <circle cx="10" cy="10" r="4.5" fill="#FCD34D" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 20 20" style={{ width: size, height: size, flexShrink: 0 }} aria-label="night">
+      <defs>
+        <mask id={maskId}>
+          <rect width="20" height="20" fill="white" />
+          <circle cx="14" cy="10" r="6.5" fill="black" />
+        </mask>
+      </defs>
+      <circle cx="10" cy="10" r="8" fill="#93C5FD" mask={`url(#${maskId})`} />
     </svg>
   );
 }
@@ -223,7 +290,6 @@ export function ClockHotspot({ hotspot }: HotspotRendererProps) {
   // Day (6–20) or night in the target timezone
   const hour = getHourInTz(now, timezone);
   const isDaytime = hour >= 6 && hour < 20;
-  const dayNightIcon = isDaytime ? "☀️" : "🌙";
 
   const tzAbbr = timezoneLabel ?? (timezone ? getTzAbbr(now, timezone) : null);
 
@@ -234,16 +300,8 @@ export function ClockHotspot({ hotspot }: HotspotRendererProps) {
     >
       {clockStyle === "analog" ? (
         <>
-          {/* Sun/moon badge in the top-right corner of the face */}
-          <div className="relative flex-1 w-full min-h-0 p-2">
-            <AnalogFace date={now} showSeconds={showSeconds} color={color} tz={timezone} />
-            <span
-              className="absolute top-1 right-1 leading-none select-none"
-              style={{ fontSize: "clamp(8px, 18%, 18px)" }}
-              aria-label={isDaytime ? "daytime" : "night"}
-            >
-              {dayNightIcon}
-            </span>
+          <div className="flex-1 w-full min-h-0 p-2">
+            <AnalogFace date={now} showSeconds={showSeconds} color={color} tz={timezone} isDaytime={isDaytime} />
           </div>
           {showDate && (
             <span
@@ -260,7 +318,7 @@ export function ClockHotspot({ hotspot }: HotspotRendererProps) {
             <span
               className="shrink-0 pb-1 text-center leading-none font-mono"
               style={{
-                fontSize: fontSize != null ? `${Math.round(fontSize * 0.38)}px` : "clamp(7px, 12%, 12px)",
+                fontSize: fontSize != null ? `${Math.round(fontSize * 0.45)}px` : "clamp(8px, 15%, 14px)",
                 opacity: 0.6,
               }}
             >
@@ -271,12 +329,10 @@ export function ClockHotspot({ hotspot }: HotspotRendererProps) {
       ) : (
         <>
           <div className="flex items-center gap-1.5 leading-none">
-            <span
-              aria-label={isDaytime ? "daytime" : "night"}
-              style={{ fontSize: fontSize != null ? `${Math.round(fontSize * 0.7)}px` : "clamp(10px, 22%, 28px)" }}
-            >
-              {dayNightIcon}
-            </span>
+            <DayNightIcon
+              isDaytime={isDaytime}
+              size={fontSize != null ? `${Math.round(fontSize * 0.7)}px` : "clamp(10px, 22%, 28px)"}
+            />
             <span
               className="font-mono tabular-nums font-semibold"
               style={{ fontSize: fontSize != null ? `${fontSize}px` : "clamp(10px, 30%, 36px)" }}
@@ -299,7 +355,7 @@ export function ClockHotspot({ hotspot }: HotspotRendererProps) {
             <span
               className="font-mono leading-none"
               style={{
-                fontSize: fontSize != null ? `${Math.round(fontSize * 0.45)}px` : "clamp(7px, 12%, 14px)",
+                fontSize: fontSize != null ? `${Math.round(fontSize * 0.55)}px` : "clamp(8px, 15%, 18px)",
                 opacity: 0.6,
               }}
             >

@@ -20,6 +20,7 @@
     "@fastify/cors": "^10.0.0",
     "@fastify/formbody": "^8.0.0",
     "@fastify/multipart": "^9.0.0",
+    "@fastify/rate-limit": "^10.0.0",
     "@fastify/static": "^9.0.0",
     "@floorplan-ha/ha-client": "*",
     "@floorplan-ha/shared": "*",

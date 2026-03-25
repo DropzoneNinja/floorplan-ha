@@ -134,9 +134,10 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // Also check if the asset is used in any day/night cycle images (JSON column)
+    // Uses strpos instead of LIKE to avoid wildcard injection from user-supplied id
     const cycleUsage = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*)::bigint AS count FROM floorplans
-      WHERE cycle_images_json::text LIKE ${'%' + id + '%'}
+      WHERE strpos(cycle_images_json::text, ${id}) > 0
     `;
     if ((cycleUsage[0]?.count ?? 0n) > 0n) {
       return reply.status(409).send({

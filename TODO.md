@@ -554,18 +554,11 @@
 - [ ] CSRF protection for state-mutating routes
 
 ### Reliability
-- [ ] HA WebSocket auto-reconnect (exponential backoff, max attempts)
-- [ ] Frontend reconnects to backend event stream on drop
-- [ ] No DB writes without proper error handling and rollback
-- [ ] Safe migrations: additive only, avoid destructive schema changes without care
+- [x] HA WebSocket auto-reconnect (exponential backoff, max attempts)
+- [x] Frontend reconnects to backend event stream on drop
+- [x] No DB writes without proper error handling and rollback
+- [x] Safe migrations: additive only, avoid destructive schema changes without care
 
 ---
 
-## Nice-to-Have (Low Priority / Backlog)
 
-- [ ] Theming system (light/dark/custom)
-- [ ] Presence-aware dashboard behavior (show/hide hotspots based on who is home)
-- [ ] Animated device effects (e.g. fan spinning, TV glow)
-- [ ] WebSocket broadcast optimization (only push changed entities to subscribers)
-- [ ] Audit trail UI (view revision history in admin)
-- [ ] Ambient/screensaver mode with clock or weather widget

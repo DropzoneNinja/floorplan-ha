@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import rateLimit from "@fastify/rate-limit";
 import * as argon2 from "argon2";
 import { LoginSchema, RegisterSchema } from "@floorplan-ha/shared";
 import { prisma } from "../lib/prisma.js";
@@ -8,6 +9,8 @@ import { requireAuth } from "../middleware/auth.js";
 const MAX_FAILED_ATTEMPTS = 3;
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
+  await app.register(rateLimit, { max: 10, timeWindow: "1 minute" });
+
   /**
    * POST /api/auth/login
    * Authenticate with email + password. Returns a JWT in the response body
