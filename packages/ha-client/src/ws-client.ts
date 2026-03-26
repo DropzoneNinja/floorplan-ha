@@ -28,9 +28,14 @@ export class HaWebSocketClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = true;
   private subscriptionId: number | null = null;
+  private pingTimer: ReturnType<typeof setTimeout> | null = null;
+  private pingTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingPingId: number | null = null;
 
   private readonly reconnectDelay: number;
   private readonly maxReconnectDelay: number;
+  private readonly pingInterval: number;
+  private readonly pingTimeout: number;
   private readonly wsUrl: string;
   private readonly token: string;
 
@@ -39,6 +44,8 @@ export class HaWebSocketClient {
     this.token = config.token;
     this.reconnectDelay = config.reconnectDelay ?? 2000;
     this.maxReconnectDelay = config.maxReconnectDelay ?? 30000;
+    this.pingInterval = config.pingInterval ?? 30000;
+    this.pingTimeout = config.pingTimeout ?? 10000;
   }
 
   on(listener: HaClientEventListener): () => void {
@@ -66,6 +73,7 @@ export class HaWebSocketClient {
 
   disconnect(): void {
     this.shouldReconnect = false;
+    this.stopPing();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -94,6 +102,7 @@ export class HaWebSocketClient {
     });
 
     ws.on("close", (code, reason) => {
+      this.stopPing();
       this.state = "disconnected";
       this.subscriptionId = null;
       const reasonStr = reason?.toString() ?? `code ${code}`;
@@ -121,12 +130,25 @@ export class HaWebSocketClient {
         this.reconnectAttempts = 0;
         this.emit({ type: "connected" });
         this.subscribeStateChanges();
+        this.startPing();
         break;
 
       case "auth_invalid":
         this.emit({ type: "error", error: new Error(`HA auth invalid: ${msg.message}`) });
         this.shouldReconnect = false;
         this.ws?.close();
+        break;
+
+      case "pong":
+        if (this.pendingPingId !== null && msg.id === this.pendingPingId) {
+          this.pendingPingId = null;
+          if (this.pingTimeoutTimer) {
+            clearTimeout(this.pingTimeoutTimer);
+            this.pingTimeoutTimer = null;
+          }
+          // Schedule next ping
+          this.pingTimer = setTimeout(() => this.sendPing(), this.pingInterval);
+        }
         break;
 
       case "result":
@@ -163,6 +185,39 @@ export class HaWebSocketClient {
         event_type: "state_changed",
       }),
     );
+  }
+
+  private startPing(): void {
+    this.pingTimer = setTimeout(() => this.sendPing(), this.pingInterval);
+  }
+
+  private stopPing(): void {
+    if (this.pingTimer) {
+      clearTimeout(this.pingTimer);
+      this.pingTimer = null;
+    }
+    if (this.pingTimeoutTimer) {
+      clearTimeout(this.pingTimeoutTimer);
+      this.pingTimeoutTimer = null;
+    }
+    this.pendingPingId = null;
+  }
+
+  private sendPing(): void {
+    this.pingTimer = null;
+    if (this.state !== "connected" || !this.ws) return;
+
+    const id = this.nextId();
+    this.pendingPingId = id;
+    this.ws.send(JSON.stringify({ id, type: "ping" }));
+
+    this.pingTimeoutTimer = setTimeout(() => {
+      // No pong received — connection is silently dead, force close to trigger reconnect
+      console.warn("[ha-ws] Ping timeout — forcing reconnect");
+      this.pingTimeoutTimer = null;
+      this.pendingPingId = null;
+      this.ws?.terminate();
+    }, this.pingTimeout);
   }
 
   private scheduleReconnect(): void {

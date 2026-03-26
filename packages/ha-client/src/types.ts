@@ -79,12 +79,18 @@ export interface HaStateChangedEventData {
   new_state: HaStateResponse | null;
 }
 
+export interface HaWsPong {
+  id: number;
+  type: "pong";
+}
+
 export type HaWsMessage =
   | HaWsAuthRequired
   | HaWsAuthOk
   | HaWsAuthInvalid
   | HaWsResult
-  | HaWsEvent;
+  | HaWsEvent
+  | HaWsPong;
 
 // ─── Client Events ────────────────────────────────────────────────────────────
 
@@ -113,4 +119,8 @@ export interface HaClientConfig {
   /** Reconnect delay in ms (default 2000, doubles each attempt up to maxReconnectDelay) */
   reconnectDelay?: number;
   maxReconnectDelay?: number;
+  /** How often to send a ping to detect silent disconnects (default 30000ms) */
+  pingInterval?: number;
+  /** How long to wait for a pong before treating the connection as dead (default 10000ms) */
+  pingTimeout?: number;
 }

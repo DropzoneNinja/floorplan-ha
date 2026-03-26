@@ -1,10 +1,10 @@
-Battery display.
-
 Water tank
 
 AI?
 
 Cameras?
+
+Make UV legend larger
 
 ## Nice-to-Have (Low Priority / Backlog)
 
