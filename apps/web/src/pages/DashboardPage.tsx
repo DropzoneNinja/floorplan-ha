@@ -28,16 +28,16 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [showPinOverlay, setShowPinOverlay] = useState(false);
 
-  // Inactivity screensaver (default 5 min; configurable via settings)
-  const { isIdle, resetIdle } = useInactivity(5 * 60 * 1000);
-
-  // Load kiosk PIN setting from app settings
+  // Load kiosk PIN and screensaver settings
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.settings.list(),
     staleTime: 60 * 1000,
   });
   const kioskPin = settings?.["kiosk_pin"] as string | null ?? null;
+  const screensaverMinutes = (settings?.["screensaver_timeout"] as number | null) ?? 5;
+
+  const { isIdle, resetIdle } = useInactivity(screensaverMinutes * 60 * 1000);
 
   const { data: floorplan, isLoading, error } = useQuery({
     queryKey: ["default-floorplan"],
@@ -90,7 +90,7 @@ export default function DashboardPage() {
         ⚙
       </button>
 
-      {isIdle && <ScreensaverOverlay onDismiss={resetIdle} />}
+      {screensaverMinutes > 0 && isIdle && <ScreensaverOverlay onDismiss={resetIdle} />}
 
       {showPinOverlay && (
         <KioskPinOverlay

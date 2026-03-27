@@ -215,6 +215,38 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Screensaver */}
+        <section className="mb-6 rounded-xl bg-surface-raised p-6">
+          <h2 className="mb-1 text-sm font-medium uppercase tracking-widest text-gray-400">
+            Screensaver
+          </h2>
+          <p className="mb-4 text-xs text-gray-600">
+            Dim the display after a period of inactivity. Set to 0 to disable.
+          </p>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              Timeout
+              <input
+                type="number"
+                min={0}
+                max={20}
+                value={(settings?.["screensaver_timeout"] as number | null) ?? 5}
+                onChange={(e) => {
+                  const val = Math.min(20, Math.max(0, parseInt(e.target.value, 10) || 0));
+                  saveSetting.mutate({ key: "screensaver_timeout", value: val });
+                }}
+                className="input-field w-20"
+              />
+              minutes
+            </label>
+            <span className="text-xs text-gray-600">
+              {((settings?.["screensaver_timeout"] as number | null) ?? 5) === 0
+                ? "Screensaver disabled"
+                : `Activates after ${(settings?.["screensaver_timeout"] as number | null) ?? 5} min of inactivity`}
+            </span>
+          </div>
+        </section>
+
         {/* Kiosk PIN */}
         <section className="mb-6 rounded-xl bg-surface-raised p-6">
           <h2 className="mb-1 text-sm font-medium uppercase tracking-widest text-gray-400">
