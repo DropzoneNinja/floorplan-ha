@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { EntityState } from "@floorplan-ha/shared";
 import { useEntityStateStore } from "../store/entity-states.ts";
 
@@ -8,6 +9,7 @@ import { useEntityStateStore } from "../store/entity-states.ts";
  * Auto-reconnects on disconnect.
  */
 export function useStateStream() {
+  const qc = useQueryClient();
   const setStates = useEntityStateStore((s) => s.setStates);
   const updateState = useEntityStateStore((s) => s.updateState);
   const setConnectionStatus = useEntityStateStore((s) => s.setConnectionStatus);
@@ -33,6 +35,10 @@ export function useStateStream() {
         updateState(entityState);
       });
 
+      es.addEventListener("settings_changed", () => {
+        void qc.invalidateQueries({ queryKey: ["settings"] });
+      });
+
       es.onerror = () => {
         es.close();
         esRef.current = null;
@@ -50,5 +56,5 @@ export function useStateStream() {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       esRef.current?.close();
     };
-  }, [setStates, updateState, setConnectionStatus]);
+  }, [setStates, updateState, setConnectionStatus, qc]);
 }

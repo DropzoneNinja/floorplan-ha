@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { UpdateSettingSchema } from "@floorplan-ha/shared";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { settingsBus } from "../services/settings-bus.js";
 
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
   /** GET /api/settings */
@@ -20,11 +21,13 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: body.error.message });
     }
 
+    const value = body.data.value as Parameters<typeof prisma.appSetting.upsert>[0]["create"]["valueJson"];
     const setting = await prisma.appSetting.upsert({
       where: { key },
-      update: { valueJson: body.data.value },
-      create: { key, valueJson: body.data.value },
+      update: { valueJson: value },
+      create: { key, valueJson: value },
     });
+    settingsBus.emit(key);
     return reply.send(setting);
   });
 }

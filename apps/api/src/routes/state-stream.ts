@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../middleware/auth.js";
 import { getHaService } from "../services/ha.js";
+import { settingsBus } from "../services/settings-bus.js";
 
 /**
  * GET /api/state/stream
@@ -34,6 +35,11 @@ export async function stateStreamRoutes(app: FastifyInstance): Promise<void> {
       reply.raw.write(`event: state_changed\ndata: ${JSON.stringify(entityState)}\n\n`);
     });
 
+    // Subscribe to settings changes so all clients stay in sync
+    const unsubscribeSettings = settingsBus.subscribe((key) => {
+      reply.raw.write(`event: settings_changed\ndata: ${JSON.stringify({ key })}\n\n`);
+    });
+
     // Send a heartbeat every 30s to keep the connection alive through proxies
     const heartbeat = setInterval(() => {
       reply.raw.write(": heartbeat\n\n");
@@ -42,6 +48,7 @@ export async function stateStreamRoutes(app: FastifyInstance): Promise<void> {
     request.raw.on("close", () => {
       clearInterval(heartbeat);
       unsubscribe();
+      unsubscribeSettings();
     });
 
     // Keep the reply open
