@@ -21,7 +21,8 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: body.error.message });
     }
 
-    const value = body.data.value as Parameters<typeof prisma.appSetting.upsert>[0]["create"]["valueJson"];
+    // JSON round-trip converts unknown → any, which satisfies Prisma's InputJsonValue
+    const value = JSON.parse(JSON.stringify(body.data.value));
     const setting = await prisma.appSetting.upsert({
       where: { key },
       update: { valueJson: value },
