@@ -13,6 +13,7 @@ import type {
   WindroseConfig,
   BatteryConfig,
   ClockConfig,
+  BurnOffConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -450,6 +451,13 @@ function EntityTab({
     return (
       <p className="text-[11px] text-gray-500">
         The clock reads the browser&apos;s local time — no Home Assistant entity is needed.
+      </p>
+    );
+  }
+  if (hotspotType === "burn_off") {
+    return (
+      <p className="text-[11px] text-gray-500">
+        The Burn Off / Fire Ban hotspot uses the day of the week and the CFA Victoria RSS feed — no Home Assistant entity is needed.
       </p>
     );
   }
@@ -1667,6 +1675,10 @@ function StyleTab({
     );
   }
 
+  if (hotspotType === "burn_off") {
+    return <BurnOffStyleTab config={config} onChange={onChange} />;
+  }
+
   if (hotspotType === "custom") {
     return (
       <p className="text-[11px] text-gray-500">
@@ -1799,6 +1811,141 @@ function TimezonePicker({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ─── Burn Off Style Tab ────────────────────────────────────────────────────────
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+function BurnOffStyleTab({
+  config,
+  onChange,
+}: {
+  config: HotspotRaw["configJson"];
+  onChange: (c: HotspotRaw["configJson"]) => void;
+}) {
+  const c = config as BurnOffConfig;
+  const allowedDays: number[] = c.allowedDays ?? [];
+  const noBurnPeriods: Array<{ from: string; to: string }> = c.noBurnPeriods ?? [];
+
+  function toggleDay(dayIndex: number, checked: boolean) {
+    const next = checked
+      ? [...allowedDays, dayIndex].sort((a, b) => a - b)
+      : allowedDays.filter((d) => d !== dayIndex);
+    onChange({ ...c, allowedDays: next });
+  }
+
+  function updatePeriod(idx: number, field: "from" | "to", value: string) {
+    const next = noBurnPeriods.map((p, i) => (i === idx ? { ...p, [field]: value } : p));
+    onChange({ ...c, noBurnPeriods: next });
+  }
+
+  function addPeriod() {
+    if (noBurnPeriods.length >= 5) return;
+    onChange({ ...c, noBurnPeriods: [...noBurnPeriods, { from: "", to: "" }] });
+  }
+
+  function removePeriod(idx: number) {
+    onChange({ ...c, noBurnPeriods: noBurnPeriods.filter((_, i) => i !== idx) });
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <AssetPickerField
+        label="Burn-off image"
+        assetId={c.burnOffAssetId ?? null}
+        onChange={(id) => onChange({ ...c, burnOffAssetId: id })}
+      />
+      <AssetPickerField
+        label="Total fire ban overlay image"
+        assetId={c.fireBanAssetId ?? null}
+        onChange={(id) => onChange({ ...c, fireBanAssetId: id })}
+      />
+
+      <div>
+        <p className="mb-2 text-[11px] font-medium text-gray-400">Permitted burn days</p>
+        <p className="mb-3 text-[11px] text-gray-500">
+          The burn-off image will only be displayed on the selected days of the week.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {DAY_LABELS.map((label, i) => {
+            const active = allowedDays.includes(i);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => toggleDay(i, !active)}
+                className={[
+                  "rounded border px-2.5 py-1 text-[11px] transition-colors",
+                  active
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-300",
+                ].join(" ")}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-medium text-gray-400">No-burn periods</p>
+        <p className="mb-3 text-[11px] text-gray-500">
+          The burn-off image will be hidden during these date ranges even on permitted days.
+          Up to 5 periods.
+        </p>
+
+        {noBurnPeriods.length > 0 && (
+          <div className="mb-2 flex flex-col gap-2">
+            {noBurnPeriods.map((period, idx) => (
+              <div key={idx} className="flex items-center gap-2 rounded-lg bg-white/5 p-2">
+                <div className="flex flex-1 flex-col gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-7 shrink-0 text-[10px] text-gray-500">From</span>
+                    <input
+                      type="date"
+                      value={period.from}
+                      onChange={(e) => updatePeriod(idx, "from", e.target.value)}
+                      className="flex-1 rounded border border-white/10 bg-bg px-2 py-0.5 text-[11px] text-white focus:border-accent focus:outline-none"
+                      style={{ colorScheme: "dark" }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-7 shrink-0 text-[10px] text-gray-500">To</span>
+                    <input
+                      type="date"
+                      value={period.to}
+                      min={period.from || undefined}
+                      onChange={(e) => updatePeriod(idx, "to", e.target.value)}
+                      className="flex-1 rounded border border-white/10 bg-bg px-2 py-0.5 text-[11px] text-white focus:border-accent focus:outline-none"
+                      style={{ colorScheme: "dark" }}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removePeriod(idx)}
+                  className="shrink-0 text-[11px] text-gray-500 hover:text-red-400"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={addPeriod}
+          disabled={noBurnPeriods.length >= 5}
+          className="w-full rounded border border-dashed border-white/20 py-1.5 text-[11px] text-gray-500 hover:border-white/40 hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          + Add no-burn period
+        </button>
+      </div>
     </div>
   );
 }

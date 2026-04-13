@@ -24,6 +24,7 @@ import { backupRoutes } from "./routes/backup.js";
 import { stateStreamRoutes } from "./routes/state-stream.js";
 import { revisionRoutes } from "./routes/revisions.js";
 import { weatherRoutes } from "./routes/weather.js";
+import { firebanRoutes } from "./routes/fireban.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -69,6 +70,7 @@ async function buildApp() {
   await app.register(stateStreamRoutes, { prefix: "/api/state" });
   await app.register(revisionRoutes, { prefix: "/api/revisions" });
   await app.register(weatherRoutes, { prefix: "/api/weather" });
+  await app.register(firebanRoutes, { prefix: "/api/fireban" });
 
   // ─── Health Check ─────────────────────────────────────────────────────────
 

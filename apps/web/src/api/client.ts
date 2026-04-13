@@ -223,6 +223,11 @@ export const api = {
     hourly: (date: string) => request<WeatherHourlyResponse>(`/weather/forecast/hourly?date=${date}`),
   },
 
+  // CFA Total Fire Ban status (Central district, Victoria)
+  fireban: {
+    status: () => request<{ totalFireban: boolean; fetchedAt: string }>("/fireban/status"),
+  },
+
 };
 
 // ─── Weather API response types ───────────────────────────────────────────────

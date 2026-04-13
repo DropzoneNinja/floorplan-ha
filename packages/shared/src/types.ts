@@ -60,7 +60,8 @@ export type HotspotType =
   | "temperature_gauge"
   | "windrose"
   | "battery"
-  | "clock";
+  | "clock"
+  | "burn_off";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -280,6 +281,17 @@ export interface ClockConfig {
   timezoneLabel: string | null;
 }
 
+export interface BurnOffConfig {
+  /** Asset ID for the fire/burn-off image shown on permitted days. */
+  burnOffAssetId: string | null;
+  /** Asset ID for the overlay image shown when a Total Fire Ban is declared. */
+  fireBanAssetId: string | null;
+  /** Days of the week on which burning is permitted: 0 = Sunday, 1 = Monday … 6 = Saturday. */
+  allowedDays: number[];
+  /** Up to 5 date ranges (YYYY-MM-DD) during which burning is not allowed. */
+  noBurnPeriods: Array<{ from: string; to: string }>;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -293,6 +305,7 @@ export type HotspotConfig =
   | TemperatureGaugeConfig
   | WindroseConfig
   | ClockConfig
+  | BurnOffConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

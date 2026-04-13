@@ -145,6 +145,7 @@ enum HotspotType {
   windrose
   battery
   clock
+  burn_off
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────

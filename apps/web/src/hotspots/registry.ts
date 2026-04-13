@@ -1,4 +1,4 @@
-import type { HotspotType, WindroseConfig, ClockConfig } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -14,6 +14,7 @@ import { TemperatureGaugeHotspot } from "./renderers/TemperatureGaugeHotspot.tsx
 import { WindroseHotspot } from "./renderers/WindroseHotspot.tsx";
 import { BatteryHotspot } from "./renderers/BatteryHotspot.tsx";
 import { ClockHotspot } from "./renderers/ClockHotspot.tsx";
+import { BurnOffHotspot } from "./renderers/BurnOffHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -233,6 +234,20 @@ registerHotspotType({
     timezone: null,
     timezoneLabel: null,
   } satisfies ClockConfig,
+});
+
+registerHotspotType({
+  type: "burn_off",
+  label: "Burn Off / Fire Ban",
+  description: "Shows a fire image on permitted burn days and overlays a fire ban image when CFA Victoria declares a Total Fire Ban for the Central district.",
+  icon: "🔥",
+  Renderer: BurnOffHotspot,
+  defaultConfig: {
+    burnOffAssetId: null,
+    fireBanAssetId: null,
+    allowedDays: [1, 2, 3, 4, 5], // Mon–Fri default
+    noBurnPeriods: [],
+  } satisfies BurnOffConfig,
 });
 
 registerHotspotType({

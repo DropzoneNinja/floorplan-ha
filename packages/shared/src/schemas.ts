@@ -96,6 +96,7 @@ export const HotspotTypeSchema = z.enum([
   "windrose",
   "battery",
   "clock",
+  "burn_off",
 ]);
 
 export const TemperatureGaugeConfigSchema = z.object({
