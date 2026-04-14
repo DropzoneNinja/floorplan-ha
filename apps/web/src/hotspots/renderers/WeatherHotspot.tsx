@@ -660,31 +660,31 @@ function UvInfoModal({ uvValue, onClose }: { uvValue: number | null; onClose: ()
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-sm rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <span className="text-sm font-semibold text-white">
+      <div className="w-full max-w-xl rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:rounded-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+          <span className="text-lg font-semibold text-white">
             UV Index{uvValue !== null ? ` — ${uvValue}` : ""}
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded-full p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
             aria-label="Close"
           >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-6 w-6">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
           </button>
         </div>
 
-        <div className="p-3">
-          <table className="w-full border-separate border-spacing-0 text-xs">
+        <div className="p-4">
+          <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr className="text-left text-gray-500">
-                <th className="pb-2 pr-3 font-medium">Index</th>
-                <th className="pb-2 pr-3 font-medium">Risk</th>
-                <th className="pb-2 pr-3 font-medium">Guidance</th>
-                <th className="pb-2 font-medium whitespace-nowrap">Unprotected</th>
+                <th className="pb-3 pr-4 font-medium">Index</th>
+                <th className="pb-3 pr-4 font-medium">Risk</th>
+                <th className="pb-3 pr-4 font-medium">Guidance</th>
+                <th className="pb-3 font-medium whitespace-nowrap">Unprotected</th>
               </tr>
             </thead>
             <tbody>
@@ -694,16 +694,16 @@ function UvInfoModal({ uvValue, onClose }: { uvValue: number | null; onClose: ()
                 const inactiveTop = "border-t border-white/5";
                 return (
                   <tr key={range}>
-                    <td className={`py-2 pr-3 font-mono text-gray-300 align-top ${isActive ? `${activeBase} border-l border-white/20 rounded-l-lg pl-2` : inactiveTop}`}>
+                    <td className={`py-3 pr-4 font-mono text-gray-300 align-top ${isActive ? `${activeBase} border-l border-white/20 rounded-l-lg pl-3` : inactiveTop}`}>
                       {range}
                     </td>
-                    <td className={`py-2 pr-3 font-semibold whitespace-nowrap align-top ${UV_COLORS[label] ?? "text-white"} ${isActive ? activeBase : inactiveTop}`}>
+                    <td className={`py-3 pr-4 font-semibold whitespace-nowrap align-top ${UV_COLORS[label] ?? "text-white"} ${isActive ? activeBase : inactiveTop}`}>
                       {label}
                     </td>
-                    <td className={`py-2 pr-3 text-gray-400 leading-relaxed ${isActive ? activeBase : inactiveTop}`}>
+                    <td className={`py-3 pr-4 text-gray-400 leading-relaxed ${isActive ? activeBase : inactiveTop}`}>
                       {desc}
                     </td>
-                    <td className={`py-2 text-gray-400 whitespace-nowrap align-top ${isActive ? `${activeBase} border-r border-white/20 rounded-r-lg pr-2` : inactiveTop}`}>
+                    <td className={`py-3 text-gray-400 whitespace-nowrap align-top ${isActive ? `${activeBase} border-r border-white/20 rounded-r-lg pr-3` : inactiveTop}`}>
                       {exposure}
                     </td>
                   </tr>
