@@ -1859,7 +1859,12 @@ function BurnOffStyleTab({
         onChange={(id) => onChange({ ...c, burnOffAssetId: id })}
       />
       <AssetPickerField
-        label="Total fire ban overlay image"
+        label="No burn-off day image"
+        assetId={c.noBurnDayAssetId ?? null}
+        onChange={(id) => onChange({ ...c, noBurnDayAssetId: id })}
+      />
+      <AssetPickerField
+        label="Total fire ban image"
         assetId={c.fireBanAssetId ?? null}
         onChange={(id) => onChange({ ...c, fireBanAssetId: id })}
       />

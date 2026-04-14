@@ -284,7 +284,9 @@ export interface ClockConfig {
 export interface BurnOffConfig {
   /** Asset ID for the fire/burn-off image shown on permitted days. */
   burnOffAssetId: string | null;
-  /** Asset ID for the overlay image shown when a Total Fire Ban is declared. */
+  /** Asset ID for the image shown when it is not a permitted burn day. */
+  noBurnDayAssetId: string | null;
+  /** Asset ID for the overlay image shown when a Total Fire Ban is declared (highest priority). */
   fireBanAssetId: string | null;
   /** Days of the week on which burning is permitted: 0 = Sunday, 1 = Monday … 6 = Saturday. */
   allowedDays: number[];

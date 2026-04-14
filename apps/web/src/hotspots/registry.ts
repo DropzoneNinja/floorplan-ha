@@ -244,6 +244,7 @@ registerHotspotType({
   Renderer: BurnOffHotspot,
   defaultConfig: {
     burnOffAssetId: null,
+    noBurnDayAssetId: null,
     fireBanAssetId: null,
     allowedDays: [1, 2, 3, 4, 5], // Mon–Fri default
     noBurnPeriods: [],
