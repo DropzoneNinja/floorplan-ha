@@ -260,5 +260,6 @@ export interface WeatherHourlyResponse {
     precipitation_probability: number[];
     windspeed_10m: number[];
     is_day: number[];
+    uv_index: number[];
   };
 }

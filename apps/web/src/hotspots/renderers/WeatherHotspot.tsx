@@ -382,7 +382,7 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
       <div className="w-full max-w-2xl rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:rounded-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <span className="text-base font-semibold text-white">Today&apos;s Forecast</span>
+          <span className="text-2xl font-semibold text-white">Today&apos;s Forecast</span>
           <button
             type="button"
             onClick={onClose}
@@ -436,6 +436,7 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
                       const temp = data!.hourly.temperature_2m[i] ?? 0;
                       const precip = data!.hourly.precipitation_probability[i] ?? 0;
                       const isNight = (data!.hourly.is_day[i] ?? 1) === 0;
+                      const uv = data!.hourly.uv_index[i] ?? 0;
                       const hour = new Date(t).getHours();
                       const isCurrent = hour === currentHour;
                       return (
@@ -458,6 +459,9 @@ function TodayDetailModal({ date, unit, outsideTempEntityId, onClose }: TodayDet
                             {fmtTempShort(temp, unit)}
                           </span>
                           <span className="text-[10px] text-blue-300">{precip}%</span>
+                          {!isNight && (
+                            <span className="text-[10px] text-yellow-300">UV {Math.round(uv)}</span>
+                          )}
                         </div>
                       );
                     })}
