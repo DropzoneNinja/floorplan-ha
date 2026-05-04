@@ -179,6 +179,10 @@ export const api = {
       request<{ readings: Array<{ time: string; value: number }> }>(
         `/ha/history/${encodeURIComponent(entityId)}?date=${encodeURIComponent(date)}`,
       ),
+    historyRange: (entityId: string, start: string, end: string) =>
+      request<{ readings: Array<{ time: string; value: number }> }>(
+        `/ha/history-range/${encodeURIComponent(entityId)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+      ),
   },
 
   // Backup & Restore

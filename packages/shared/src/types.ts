@@ -61,7 +61,8 @@ export type HotspotType =
   | "windrose"
   | "battery"
   | "clock"
-  | "burn_off";
+  | "burn_off"
+  | "rain_rate";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -294,6 +295,17 @@ export interface BurnOffConfig {
   noBurnPeriods: Array<{ from: string; to: string }>;
 }
 
+export interface RainRateConfig {
+  dailyRainRateEntityId: string | null;
+  hourlyRainRateEntityId: string | null;
+  monthlyRainRateEntityId: string | null;
+  yearlyRainRateEntityId: string | null;
+  /** mm (or in) at which the raindrop tank appears full. Default 50. */
+  dailyMaxMm: number;
+  /** Display unit suffix, e.g. "mm" or "in". Default "mm". */
+  unit: string;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -307,6 +319,7 @@ export type HotspotConfig =
   | TemperatureGaugeConfig
   | WindroseConfig
   | ClockConfig
+  | RainRateConfig
   | BurnOffConfig
   | Record<string, unknown>;
 

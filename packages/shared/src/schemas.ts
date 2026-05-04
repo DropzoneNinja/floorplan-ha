@@ -97,6 +97,7 @@ export const HotspotTypeSchema = z.enum([
   "battery",
   "clock",
   "burn_off",
+  "rain_rate",
 ]);
 
 export const TemperatureGaugeConfigSchema = z.object({
@@ -129,6 +130,15 @@ export const ClockConfigSchema = z.object({
   fontSize: z.number().int().positive().nullable().default(null),
   timezone: z.string().nullable().default(null),
   timezoneLabel: z.string().nullable().default(null),
+});
+
+export const RainRateConfigSchema = z.object({
+  dailyRainRateEntityId: z.string().nullable().default(null),
+  hourlyRainRateEntityId: z.string().nullable().default(null),
+  monthlyRainRateEntityId: z.string().nullable().default(null),
+  yearlyRainRateEntityId: z.string().nullable().default(null),
+  dailyMaxMm: z.number().positive().default(50),
+  unit: z.string().default("mm"),
 });
 
 export const CreateHotspotSchema = z.object({

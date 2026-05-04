@@ -146,6 +146,7 @@ enum HotspotType {
   battery
   clock
   burn_off
+  rain_rate
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────

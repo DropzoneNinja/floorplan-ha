@@ -116,6 +116,28 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /** GET /api/ha/history-range/:entityId?start=YYYY-MM-DD&end=YYYY-MM-DD — readings over a date range */
+  app.get("/history-range/:entityId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId } = request.params as { entityId: string };
+    const { start, end } = request.query as { start?: string; end?: string };
+
+    if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !end || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Query params 'start' and 'end' must be YYYY-MM-DD" });
+    }
+
+    const ha = getHaService();
+    try {
+      const raw = await ha.getHistory(entityId, `${start}T00:00:00`, `${end}T23:59:59`);
+      const readings = raw
+        .filter((r) => !isNaN(parseFloat(r.state)))
+        .map((r) => ({ time: r.last_changed, value: parseFloat(r.state) }));
+      return reply.send({ readings });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
   /** GET /api/ha/history/:entityId?date=YYYY-MM-DD — historical numeric readings for one day */
   app.get("/history/:entityId", { preHandler: [requireAuth] }, async (request, reply) => {
     const { entityId } = request.params as { entityId: string };

@@ -1,4 +1,4 @@
-import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -15,6 +15,7 @@ import { WindroseHotspot } from "./renderers/WindroseHotspot.tsx";
 import { BatteryHotspot } from "./renderers/BatteryHotspot.tsx";
 import { ClockHotspot } from "./renderers/ClockHotspot.tsx";
 import { BurnOffHotspot } from "./renderers/BurnOffHotspot.tsx";
+import { RainRateHotspot } from "./renderers/RainRateHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -249,6 +250,22 @@ registerHotspotType({
     allowedDays: [1, 2, 3, 4, 5], // Mon–Fri default
     noBurnPeriods: [],
   } satisfies BurnOffConfig,
+});
+
+registerHotspotType({
+  type: "rain_rate",
+  label: "Rain Rate",
+  description: "Displays rain rate metrics as a filling raindrop. Click to view hourly, daily, monthly and yearly rates.",
+  icon: "🌧️",
+  Renderer: RainRateHotspot,
+  defaultConfig: {
+    dailyRainRateEntityId: null,
+    hourlyRainRateEntityId: null,
+    monthlyRainRateEntityId: null,
+    yearlyRainRateEntityId: null,
+    dailyMaxMm: 50,
+    unit: "mm",
+  } satisfies RainRateConfig,
 });
 
 registerHotspotType({

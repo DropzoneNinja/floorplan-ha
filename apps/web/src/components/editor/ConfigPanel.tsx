@@ -14,6 +14,7 @@ import type {
   BatteryConfig,
   ClockConfig,
   BurnOffConfig,
+  RainRateConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -458,6 +459,13 @@ function EntityTab({
     return (
       <p className="text-[11px] text-gray-500">
         The Burn Off / Fire Ban hotspot uses the day of the week and the CFA Victoria RSS feed — no Home Assistant entity is needed.
+      </p>
+    );
+  }
+  if (hotspotType === "rain_rate") {
+    return (
+      <p className="text-[11px] text-gray-500">
+        Rain rate entities are configured in the Config tab. The primary entity (daily rain rate) drives the raindrop fill level.
       </p>
     );
   }
@@ -1007,6 +1015,61 @@ function ActionsTab({
   if (hotspotType === "battery") {
     return (
       <BatteryActionsTab hotspotId={hotspotId} config={config} onChange={onChange} />
+    );
+  }
+
+  if (hotspotType === "rain_rate") {
+    const c = config as RainRateConfig;
+    return (
+      <div className="flex flex-col gap-4">
+        <Field label="Daily rain rate entity (fills the raindrop)">
+          <EntityPicker
+            value={c.dailyRainRateEntityId ?? null}
+            onChange={(id) => onChange({ ...c, dailyRainRateEntityId: id })}
+          />
+        </Field>
+        <Field label="Hourly rain rate entity">
+          <EntityPicker
+            value={c.hourlyRainRateEntityId ?? null}
+            onChange={(id) => onChange({ ...c, hourlyRainRateEntityId: id })}
+          />
+        </Field>
+        <Field label="Monthly rain rate entity">
+          <EntityPicker
+            value={c.monthlyRainRateEntityId ?? null}
+            onChange={(id) => onChange({ ...c, monthlyRainRateEntityId: id })}
+          />
+        </Field>
+        <Field label="Yearly rain rate entity">
+          <EntityPicker
+            value={c.yearlyRainRateEntityId ?? null}
+            onChange={(id) => onChange({ ...c, yearlyRainRateEntityId: id })}
+          />
+        </Field>
+        <Field label={`Full tank at — ${c.dailyMaxMm ?? 50} ${c.unit ?? "mm"}`}>
+          <input
+            type="range"
+            min={5}
+            max={200}
+            step={5}
+            value={c.dailyMaxMm ?? 50}
+            onChange={(e) => onChange({ ...c, dailyMaxMm: Number(e.target.value) })}
+            className="w-full accent-accent"
+          />
+          <p className="mt-1 text-[11px] text-gray-500">
+            The daily rain total at which the raindrop appears completely full.
+          </p>
+        </Field>
+        <Field label="Unit">
+          <input
+            type="text"
+            value={c.unit ?? "mm"}
+            placeholder="mm"
+            onChange={(e) => onChange({ ...c, unit: e.target.value || "mm" })}
+            className="w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-white placeholder-gray-600 focus:border-accent focus:outline-none"
+          />
+        </Field>
+      </div>
     );
   }
 
