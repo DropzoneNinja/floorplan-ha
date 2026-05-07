@@ -101,7 +101,7 @@ export async function createBackup(type: BackupType = "manual"): Promise<BackupF
     create: { key: "backup_last_run_at", valueJson: new Date().toISOString() },
   });
 
-  return { filename, sizeBytes: stat.size, createdAt: stat.birthtime.toISOString() };
+  return { filename, sizeBytes: stat.size, createdAt: stat.mtime.toISOString() };
 }
 
 /** List all backup zip files in BACKUP_STORAGE_PATH, newest first. */
@@ -115,7 +115,7 @@ export async function listBackups(): Promise<BackupFile[]> {
     if (!entry.endsWith(".zip")) continue;
     const fullPath = path.join(env.BACKUP_STORAGE_PATH, entry);
     const stat = await fs.stat(fullPath);
-    backups.push({ filename: entry, sizeBytes: stat.size, createdAt: stat.birthtime.toISOString() });
+    backups.push({ filename: entry, sizeBytes: stat.size, createdAt: stat.mtime.toISOString() });
   }
 
   backups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
