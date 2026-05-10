@@ -138,6 +138,7 @@ export const RainRateConfigSchema = z.object({
   monthlyRainRateEntityId: z.string().nullable().default(null),
   yearlyRainRateEntityId: z.string().nullable().default(null),
   dailyMaxMm: z.number().positive().default(50),
+  dailyMaxMode: z.enum(["fixed", "monthly_max"]).default("fixed"),
   unit: z.string().default("mm"),
 });
 

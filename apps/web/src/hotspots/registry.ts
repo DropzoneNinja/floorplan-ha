@@ -264,6 +264,7 @@ registerHotspotType({
     monthlyRainRateEntityId: null,
     yearlyRainRateEntityId: null,
     dailyMaxMm: 50,
+    dailyMaxMode: "fixed",
     unit: "mm",
   } satisfies RainRateConfig,
 });

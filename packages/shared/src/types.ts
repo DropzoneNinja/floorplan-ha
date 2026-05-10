@@ -302,6 +302,8 @@ export interface RainRateConfig {
   yearlyRainRateEntityId: string | null;
   /** mm (or in) at which the raindrop tank appears full. Default 50. */
   dailyMaxMm: number;
+  /** "fixed" = use dailyMaxMm slider; "monthly_max" = derive from highest day this month. Default "fixed". */
+  dailyMaxMode?: "fixed" | "monthly_max";
   /** Display unit suffix, e.g. "mm" or "in". Default "mm". */
   unit: string;
 }

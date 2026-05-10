@@ -87,7 +87,7 @@ const BAR_W = 10; // SVG units per column (bars only — labels are CSS)
 const BAR_H = 100;
 const LABEL_H = 24;
 const Y_AXIS_W = 38; // px — wide enough for "1286" at the axis font size
-const Y_FONT = 10;  // px
+const Y_FONT = 13;  // px
 
 function fmtYMax(v: number): string {
   if (v <= 0) return "0";
@@ -537,13 +537,32 @@ export function RainRateHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
   const config = hotspot.configJson as RainRateConfig;
   const getState = useEntityStateStore((s) => s.getState);
 
-  const dailyMax = config.dailyMaxMm ?? 50;
+  const dailyMaxMode = config.dailyMaxMode ?? "fixed";
   const unit = config.unit || "mm";
 
   const dailyState = config.dailyRainRateEntityId ? getState(config.dailyRainRateEntityId) : undefined;
   const rawValue = dailyState?.state ?? "";
   const dailyValue = parseFloat(rawValue);
   const hasDailyValue = !isNaN(dailyValue);
+
+  const monthStart = (() => {
+    const d = new Date();
+    return isoDate(new Date(d.getFullYear(), d.getMonth(), 1));
+  })();
+  const monthEnd = isoDate(new Date());
+  const { data: monthData } = useQuery({
+    queryKey: ["rain-monthly-max", config.dailyRainRateEntityId, monthStart],
+    queryFn: () => api.ha.historyRange(config.dailyRainRateEntityId!, monthStart, monthEnd),
+    enabled: !!config.dailyRainRateEntityId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const monthlyPeak = Math.max(0, ...(monthData?.readings.map((r) => r.value) ?? []));
+
+  const dailyMax = (() => {
+    if (dailyMaxMode !== "monthly_max") return config.dailyMaxMm ?? 50;
+    return Math.max(monthlyPeak, hasDailyValue ? dailyValue : 0, 1);
+  })();
   const displayValue = hasDailyValue ? dailyValue.toFixed(1) : "—";
 
   const fillFraction = hasDailyValue ? Math.min(1, Math.max(0, dailyValue / dailyMax)) : 0;
@@ -604,6 +623,20 @@ export function RainRateHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
             stroke="rgba(255,255,255,0.4)"
             strokeWidth="1.5"
           />
+
+          {monthlyPeak > 0 && (
+            <text
+              x="50"
+              y="-1"
+              textAnchor="middle"
+              fill="rgba(255,255,255,0.55)"
+              fontSize="18"
+              fontWeight="bold"
+              fontFamily="system-ui, sans-serif"
+            >
+              {monthlyPeak.toFixed(1)}
+            </text>
+          )}
 
           <text
             x="50"

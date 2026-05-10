@@ -1046,20 +1046,44 @@ function ActionsTab({
             onChange={(id) => onChange({ ...c, yearlyRainRateEntityId: id })}
           />
         </Field>
-        <Field label={`Full tank at — ${c.dailyMaxMm ?? 50} ${c.unit ?? "mm"}`}>
-          <input
-            type="range"
-            min={5}
-            max={200}
-            step={5}
-            value={c.dailyMaxMm ?? 50}
-            onChange={(e) => onChange({ ...c, dailyMaxMm: Number(e.target.value) })}
-            className="w-full accent-accent"
-          />
-          <p className="mt-1 text-[11px] text-gray-500">
-            The daily rain total at which the raindrop appears completely full.
-          </p>
+        <Field label="Raindrop full at">
+          <div className="flex gap-2">
+            {(["fixed", "monthly_max"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => onChange({ ...c, dailyMaxMode: mode })}
+                className={`flex-1 rounded px-2 py-1 text-xs border transition-colors ${
+                  (c.dailyMaxMode ?? "fixed") === mode
+                    ? "border-accent bg-accent/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20"
+                }`}
+              >
+                {mode === "fixed" ? "Fixed value" : "Monthly max"}
+              </button>
+            ))}
+          </div>
         </Field>
+        {(c.dailyMaxMode ?? "fixed") === "fixed" && (
+          <Field label={`Full tank at — ${c.dailyMaxMm ?? 50} ${c.unit ?? "mm"}`}>
+            <input
+              type="range"
+              min={5}
+              max={200}
+              step={5}
+              value={c.dailyMaxMm ?? 50}
+              onChange={(e) => onChange({ ...c, dailyMaxMm: Number(e.target.value) })}
+              className="w-full accent-accent"
+            />
+            <p className="mt-1 text-[11px] text-gray-500">
+              The daily rain total at which the raindrop appears completely full.
+            </p>
+          </Field>
+        )}
+        {(c.dailyMaxMode ?? "fixed") === "monthly_max" && (
+          <p className="text-[11px] text-gray-500">
+            The raindrop scales to the highest single-day total this calendar month. Today's rain can never exceed full.
+          </p>
+        )}
         <Field label="Unit">
           <input
             type="text"
