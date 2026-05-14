@@ -79,9 +79,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const token = await signToken({ sub: user.id, email: user.email, role: user.role });
 
+    const isHttps = request.headers["x-forwarded-proto"] === "https" || (request.protocol as string) === "https";
     reply.setCookie("token", token, {
       httpOnly: true,
-      secure: process.env["NODE_ENV"] === "production",
+      secure: isHttps,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -195,9 +196,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const token = await signToken({ sub: updated.id, email: updated.email, role: updated.role });
 
+    const isHttps = request.headers["x-forwarded-proto"] === "https" || (request.protocol as string) === "https";
     reply.setCookie("token", token, {
       httpOnly: true,
-      secure: process.env["NODE_ENV"] === "production",
+      secure: isHttps,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
