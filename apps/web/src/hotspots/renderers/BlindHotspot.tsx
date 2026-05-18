@@ -531,6 +531,14 @@ function BlindGroupModal({ hotspot, groupEntityIds, onClose }: BlindGroupModalPr
           </button>
         </div>
 
+        {/* Mini blind previews */}
+        <div className="flex justify-around overflow-x-auto px-6 pt-4 pb-1" style={{ scrollbarWidth: "none" }}>
+          {groupEntityIds.map((id) => (
+            <MiniBlindPreview key={id} entityId={id} />
+          ))}
+        </div>
+        <div className="border-b border-white/10" />
+
         {/* Main content */}
         <div className="flex items-start justify-center gap-6 px-6 pt-6">
           {/* Quick action buttons */}
@@ -598,24 +606,44 @@ function BlindGroupModal({ hotspot, groupEntityIds, onClose }: BlindGroupModalPr
           </div>
         </div>
 
-        {/* Entity list */}
-        <div className="mt-4 px-6">
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-600">
-            Included blinds
-          </p>
-          <div className="flex flex-col gap-1">
-            {groupEntityIds.map((id) => (
-              <p key={id} className="truncate text-[11px] text-gray-500">
-                {id}
-              </p>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
 
   return createPortal(modal, document.body);
+}
+
+// ─── Mini blind preview (read-only, used in group modal) ─────────────────────
+
+function MiniBlindPreview({ entityId }: { entityId: string }) {
+  const entityState = useEntityStateStore((s) => s.getState(entityId));
+  const position =
+    typeof entityState?.attributes?.current_position === "number"
+      ? entityState.attributes.current_position
+      : 50;
+  const shadeHeightPct = 100 - position;
+  const isMoving = entityState?.state === "opening" || entityState?.state === "closing";
+  const shortName = entityId.split(".").pop()?.replace(/_/g, " ") ?? entityId;
+
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div
+        className="relative overflow-hidden rounded-sm border border-white/20 bg-gray-900"
+        style={{ width: 32, height: 56 }}
+        aria-hidden="true"
+      >
+        <div
+          className="absolute inset-x-0 top-0 bg-gray-500/80"
+          style={{ height: `${shadeHeightPct}%` }}
+        />
+        {isMoving && (
+          <span className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+        )}
+      </div>
+      <span className="text-[9px] tabular-nums text-gray-400">{100 - position}%</span>
+      <span className="max-w-[40px] truncate text-[8px] text-gray-600">{shortName}</span>
+    </div>
+  );
 }
 
 // ─── Quick action button ──────────────────────────────────────────────────────
