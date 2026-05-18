@@ -125,7 +125,7 @@ export function BlindHotspot({
           <span className="truncate px-1 text-xs font-medium leading-tight">{label}</span>
         )}
         {position !== null && (
-          <span className="text-[10px] tabular-nums opacity-70">{position}%</span>
+          <span className="text-[10px] tabular-nums opacity-70">{100 - position}%</span>
         )}
         {isMoving && (
           <span className="absolute bottom-1 right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
@@ -320,7 +320,7 @@ function BlindControlModal({ hotspot, entityState, isLowBattery, batteryLevel, o
           {/* Blind visual */}
           <div className="flex flex-col items-center gap-2">
             <span className="text-2xl font-bold tabular-nums text-white">
-              {localPosition}
+              {100 - localPosition}
               <span className="text-base font-normal text-gray-400">%</span>
             </span>
 
@@ -334,7 +334,7 @@ function BlindControlModal({ hotspot, entityState, isLowBattery, batteryLevel, o
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
               role="slider"
-              aria-label={`Blind position: ${localPosition}%`}
+              aria-label={`Blind position: ${100 - localPosition}%`}
               aria-valuenow={localPosition}
               aria-valuemin={0}
               aria-valuemax={100}
@@ -543,7 +543,7 @@ function BlindGroupModal({ hotspot, groupEntityIds, onClose }: BlindGroupModalPr
           {/* Blind visual */}
           <div className="flex flex-col items-center gap-2">
             <span className="text-2xl font-bold tabular-nums text-white">
-              {localPosition}
+              {100 - localPosition}
               <span className="text-base font-normal text-gray-400">%</span>
             </span>
 
@@ -557,7 +557,7 @@ function BlindGroupModal({ hotspot, groupEntityIds, onClose }: BlindGroupModalPr
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
               role="slider"
-              aria-label={`Group blind position: ${localPosition}%`}
+              aria-label={`Group blind position: ${100 - localPosition}%`}
               aria-valuenow={localPosition}
               aria-valuemin={0}
               aria-valuemax={100}
