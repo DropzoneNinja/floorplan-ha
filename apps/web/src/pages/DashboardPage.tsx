@@ -80,15 +80,18 @@ export default function DashboardPage() {
       <FloorplanCanvas floorplan={floorplan} />
       <ConnectionStatus />
 
-      {/* Subtle admin access button — bottom-right corner */}
-      <button
-        type="button"
-        onClick={handleAdminAccess}
-        className="absolute bottom-2 right-2 z-10 rounded p-1.5 text-[10px] text-white/10 hover:text-white/40 transition-colors"
-        aria-label="Admin access"
-      >
-        ⚙
-      </button>
+      {/* Subtle admin access button + version — bottom-right corner */}
+      <div className="absolute bottom-2 right-2 z-10 flex items-center gap-1">
+        <span className="text-[10px] text-white/10 tabular-nums select-none">v{__APP_VERSION__}</span>
+        <button
+          type="button"
+          onClick={handleAdminAccess}
+          className="rounded p-1.5 text-[10px] text-white/10 hover:text-white/40 transition-colors"
+          aria-label="Admin access"
+        >
+          ⚙
+        </button>
+      </div>
 
       {screensaverMinutes > 0 && isIdle && <ScreensaverOverlay onDismiss={resetIdle} />}
 
