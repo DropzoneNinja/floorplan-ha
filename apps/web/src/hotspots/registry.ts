@@ -7,6 +7,7 @@ import { StateIconHotspot } from "./renderers/StateIconHotspot.tsx";
 import { BadgeHotspot } from "./renderers/BadgeHotspot.tsx";
 import { SceneHotspot } from "./renderers/SceneHotspot.tsx";
 import { BlindHotspot } from "./renderers/BlindHotspot.tsx";
+import { LightHotspot } from "./renderers/LightHotspot.tsx";
 import { BinsHotspot } from "./renderers/BinsHotspot.tsx";
 import { CustomHotspot } from "./renderers/CustomHotspot.tsx";
 import { WeatherHotspot } from "./renderers/WeatherHotspot.tsx";
@@ -144,6 +145,22 @@ registerHotspotType({
     groupEntityIds: [],
     batteryEntityId: null,
     lowBatteryThreshold: 40,
+  },
+});
+
+registerHotspotType({
+  type: "light",
+  label: "Light",
+  description: "Tap to toggle a light on/off; long-press to open brightness and colour controls",
+  icon: "💡",
+  Renderer: LightHotspot,
+  defaultConfig: {
+    icon: "mdi:lightbulb",
+    label: null,
+    backgroundColor: null,
+    onColor: null,
+    offColor: null,
+    showBrightnessLabel: true,
   },
 });
 

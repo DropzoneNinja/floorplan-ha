@@ -7,6 +7,7 @@ import type {
   BadgeConfig,
   SceneConfig,
   BlindConfig,
+  LightConfig,
   BinsConfig,
   WeatherConfig,
   TemperatureGaugeConfig,
@@ -801,6 +802,18 @@ function ActionsTab({
     );
   }
 
+  if (hotspotType === "light") {
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-[11px] text-gray-500">
+          Light hotspots use built-in controls. Tap the hotspot to toggle the light on/off.
+          Long-press to open the brightness and colour control panel.
+          Bind to a Home Assistant light entity in the Entity tab.
+        </p>
+      </div>
+    );
+  }
+
   if (hotspotType === "weather") {
     const c = config as WeatherConfig;
     return (
@@ -1455,6 +1468,64 @@ function StyleTab({
         </Field>
         <p className="text-[11px] text-gray-500">
           Bind this hotspot to a cover entity in the Entity tab.
+        </p>
+      </div>
+    );
+  }
+
+  if (hotspotType === "light") {
+    const c = config as LightConfig;
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label="Icon">
+          <IconPicker
+            value={c.icon ?? "mdi:lightbulb"}
+            onChange={(icon) => onChange({ ...c, icon })}
+          />
+        </Field>
+        <Field label="Label">
+          <input
+            type="text"
+            value={c.label ?? ""}
+            placeholder="e.g. Living Room Light"
+            onChange={(e) => onChange({ ...c, label: e.target.value || null })}
+            className="input-field"
+          />
+        </Field>
+        <Field label="Background">
+          <ColorPicker
+            value={c.backgroundColor}
+            onChange={(v) => onChange({ ...c, backgroundColor: v })}
+            nullable
+          />
+        </Field>
+        <Field label="On colour">
+          <ColorPicker
+            value={c.onColor}
+            onChange={(v) => onChange({ ...c, onColor: v })}
+            nullable
+          />
+        </Field>
+        <Field label="Off colour">
+          <ColorPicker
+            value={c.offColor}
+            onChange={(v) => onChange({ ...c, offColor: v })}
+            nullable
+          />
+        </Field>
+        <Field label="Show brightness label">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={c.showBrightnessLabel ?? true}
+              onChange={(e) => onChange({ ...c, showBrightnessLabel: e.target.checked })}
+              className="h-4 w-4 rounded accent-accent"
+            />
+            <span className="text-[11px] text-gray-400">Show brightness % on hotspot</span>
+          </label>
+        </Field>
+        <p className="text-[11px] text-gray-500">
+          Bind this hotspot to a light entity in the Entity tab.
         </p>
       </div>
     );

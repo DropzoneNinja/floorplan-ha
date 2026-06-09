@@ -54,6 +54,7 @@ export type HotspotType =
   | "badge"
   | "scene"
   | "blind"
+  | "light"
   | "bins"
   | "custom"
   | "weather"
@@ -160,6 +161,15 @@ export interface BlindConfig {
   batteryEntityId?: string | null;
   /** Battery % below which the low-battery icon is shown. Defaults to 40. */
   lowBatteryThreshold?: number | null;
+}
+
+export interface LightConfig {
+  icon: string;
+  label: string | null;
+  backgroundColor: string | null;
+  onColor: string | null;
+  offColor: string | null;
+  showBrightnessLabel: boolean;
 }
 
 export interface BatteryItem {
@@ -316,6 +326,7 @@ export type HotspotConfig =
   | BadgeConfig
   | SceneConfig
   | BlindConfig
+  | LightConfig
   | BinsConfig
   | WeatherConfig
   | TemperatureGaugeConfig
