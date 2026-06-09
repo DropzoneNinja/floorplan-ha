@@ -421,9 +421,9 @@ function MetricCard({ label, value, unit, icon, color, sparkline }: MetricCardPr
       className="flex flex-col rounded-2xl p-5 gap-2"
       style={{ backgroundColor: `${color}22`, border: `1px solid ${color}44` }}
     >
-      <div className="flex items-center gap-2" style={{ color }}>
-        {icon}
-        <span className="text-sm font-semibold uppercase tracking-wide opacity-90 leading-tight">{label}</span>
+      <div className="flex items-center gap-2">
+        <span style={{ color }}>{icon}</span>
+        <span className="text-sm font-semibold uppercase tracking-wide text-white leading-tight">{label}</span>
       </div>
       <div className="flex items-baseline gap-1.5 mt-1">
         <span className="text-4xl font-bold text-white leading-none">{value}</span>

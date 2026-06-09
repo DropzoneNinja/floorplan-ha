@@ -70,8 +70,6 @@ export function LightHotspot({
 
   const iconKey = config.icon || "mdi:lightbulb";
   const label = ruleResult?.textOverride ?? config.label;
-  const brightnessPct = brightness !== null ? Math.round(brightness / 2.55) : null;
-
   const configBg = config.backgroundColor ?? null;
   const hasCustomBg = stateStyle.backgroundColor != null || configBg != null;
   const resolvedBg =
@@ -163,9 +161,7 @@ export function LightHotspot({
         {label && (
           <span className="truncate px-1 text-xs font-medium leading-tight">{label}</span>
         )}
-        {config.showBrightnessLabel && brightnessPct !== null && isOn && (
-          <span className="text-[10px] tabular-nums opacity-70">{brightnessPct}%</span>
-        )}
+
       </button>
 
       {showModal && (
@@ -398,6 +394,22 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
                 }}
               />
               <span className="text-[11px] text-yellow-300" aria-hidden="true">☀️</span>
+            </div>
+            <div className="mt-2 flex gap-2">
+              {[25, 50, 75, 100].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => {
+                    setLocalBrightness(pct);
+                    applyBrightness(pct);
+                  }}
+                  disabled={isPending}
+                  className="flex-1 rounded-md bg-white/10 py-1.5 text-[11px] font-medium text-gray-300 hover:bg-white/20 disabled:opacity-40"
+                >
+                  {pct}%
+                </button>
+              ))}
             </div>
           </div>
 
