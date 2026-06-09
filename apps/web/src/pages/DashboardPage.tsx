@@ -81,12 +81,12 @@ export default function DashboardPage() {
       <ConnectionStatus />
 
       {/* Subtle admin access button + version — bottom-right corner */}
-      <div className="absolute bottom-2 right-2 z-10 flex items-center gap-1">
-        <span className="text-[10px] text-white/10 tabular-nums select-none">v{__APP_VERSION__}</span>
+      <div className="absolute bottom-2 right-2 z-10 flex items-center gap-3">
+        <span className="text-[30px] text-white/10 tabular-nums select-none">v{__APP_VERSION__}</span>
         <button
           type="button"
           onClick={handleAdminAccess}
-          className="rounded p-1.5 text-[10px] text-white/10 hover:text-white/40 transition-colors"
+          className="rounded p-[18px] text-[30px] text-white/10 hover:text-white/40 transition-colors"
           aria-label="Admin access"
         >
           ⚙
