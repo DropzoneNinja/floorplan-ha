@@ -91,6 +91,9 @@ export function BlindHotspot({
     longPressFired.current = false;
   }, []);
 
+  const closedPct = position !== null ? 100 - position : 100;
+  const whiteLinesCount = Math.min(5, Math.max(1, Math.round(closedPct / 25) + 1));
+
   return (
     <>
       <button
@@ -119,7 +122,10 @@ export function BlindHotspot({
         }}
       >
         <svg viewBox="0 0 24 24" className="w-1/2 shrink-0" aria-hidden="true">
-          <path d={ICON_PATHS[iconKey] ?? ICON_PATHS["default"]} fill="currentColor" />
+          {[3, 7, 11, 15, 19].map((y, i) => (
+            <rect key={y} x={3} y={y} width={18} height={2}
+              fill={i < whiteLinesCount ? "currentColor" : "#919191"} />
+          ))}
         </svg>
         {label && (
           <span className="truncate px-1 text-xs font-medium leading-tight">{label}</span>

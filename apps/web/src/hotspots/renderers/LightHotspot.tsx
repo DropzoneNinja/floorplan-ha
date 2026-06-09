@@ -210,6 +210,29 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
   const [presets, setPresets] = useState<(string | null)[]>(() => loadPresets(entityId));
   const [isPending, setIsPending] = useState(false);
   const isDraggingBrightness = useRef(false);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const colorPickerSuppressRef = useRef<((e: MouseEvent) => void) | null>(null);
+
+  useEffect(() => () => {
+    if (colorPickerSuppressRef.current) {
+      window.removeEventListener('click', colorPickerSuppressRef.current, true);
+    }
+  }, []);
+
+  const handleColorPickerOpen = useCallback(() => {
+    setTimeout(() => {
+      if (colorPickerSuppressRef.current) {
+        window.removeEventListener('click', colorPickerSuppressRef.current, true);
+      }
+      const handler = (e: MouseEvent) => {
+        colorPickerSuppressRef.current = null;
+        window.removeEventListener('click', handler, true);
+        if (e.target === backdropRef.current) e.stopPropagation();
+      };
+      colorPickerSuppressRef.current = handler;
+      window.addEventListener('click', handler, true);
+    }, 0);
+  }, []);
 
   // Preset long-press tracking (per slot index)
   const presetTimers = useRef<(ReturnType<typeof setTimeout> | null)[]>([
@@ -302,6 +325,7 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
 
   const modal = (
     <div
+      ref={backdropRef}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -314,13 +338,13 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-white">{hotspot.name}</h2>
-            {entityId && <p className="mt-0.5 text-[11px] text-gray-500">{entityId}</p>}
+            <h2 className="text-[21px] font-semibold text-white">{hotspot.name}</h2>
+            {entityId && <p className="mt-0.5 text-base text-gray-500">{entityId}</p>}
           </div>
           <div className="flex items-center gap-3">
             <span
               className={[
-                "rounded-full px-2 py-0.5 text-[11px] font-medium capitalize",
+                "rounded-full px-2 py-0.5 text-base font-medium capitalize",
                 isOn
                   ? "bg-yellow-500/20 text-yellow-300"
                   : "bg-gray-500/20 text-gray-400",
@@ -331,7 +355,7 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
             <button
               type="button"
               onClick={onClose}
-              className="text-lg leading-none text-gray-500 hover:text-white"
+              className="text-[27px] leading-none text-gray-500 hover:text-white"
             >
               ✕
             </button>
@@ -346,7 +370,7 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
               onClick={() => void callLight("turn_on")}
               disabled={isPending}
               className={[
-                "flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-40",
+                "flex-1 rounded-lg py-2 text-[21px] font-medium transition-colors disabled:opacity-40",
                 isOn
                   ? "bg-yellow-400/30 text-yellow-200 ring-1 ring-yellow-400/50"
                   : "bg-white/10 text-white/60 hover:bg-white/20",
@@ -359,7 +383,7 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
               onClick={() => void callLight("turn_off")}
               disabled={isPending}
               className={[
-                "flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-40",
+                "flex-1 rounded-lg py-2 text-[21px] font-medium transition-colors disabled:opacity-40",
                 !isOn
                   ? "bg-gray-400/20 text-gray-300 ring-1 ring-gray-400/40"
                   : "bg-white/10 text-white/60 hover:bg-white/20",
@@ -372,11 +396,11 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
           {/* Brightness */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] font-medium text-gray-400">Brightness</p>
-              <span className="text-[11px] tabular-nums text-gray-400">{localBrightness}%</span>
+              <p className="text-base font-medium text-gray-400">Brightness</p>
+              <span className="text-base tabular-nums text-gray-400">{localBrightness}%</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-gray-500" aria-hidden="true">🌑</span>
+              <span className="text-base text-gray-500" aria-hidden="true">🌑</span>
               <input
                 type="range"
                 min={1}
@@ -393,7 +417,7 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
                   applyBrightness(Number((e.target as HTMLInputElement).value));
                 }}
               />
-              <span className="text-[11px] text-yellow-300" aria-hidden="true">☀️</span>
+              <span className="text-base text-yellow-300" aria-hidden="true">☀️</span>
             </div>
             <div className="mt-2 flex gap-2">
               {[25, 50, 75, 100].map((pct) => (
@@ -405,7 +429,7 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
                     applyBrightness(pct);
                   }}
                   disabled={isPending}
-                  className="flex-1 rounded-md bg-white/10 py-1.5 text-[11px] font-medium text-gray-300 hover:bg-white/20 disabled:opacity-40"
+                  className="flex-1 rounded-md bg-white/10 py-1.5 text-base font-medium text-gray-300 hover:bg-white/20 disabled:opacity-40"
                 >
                   {pct}%
                 </button>
@@ -415,23 +439,23 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
 
           {/* Colour */}
           <div>
-            <p className="mb-2 text-[11px] font-medium text-gray-400">Colour</p>
-            <label className="flex cursor-pointer items-center gap-3">
+            <p className="mb-2 text-base font-medium text-gray-400">Colour</p>
+            <label className="flex cursor-pointer items-center gap-3" onMouseDown={handleColorPickerOpen}>
               <span
                 className="h-10 w-10 shrink-0 rounded-lg border border-white/20 shadow-inner"
                 style={{ backgroundColor: localColor }}
                 aria-hidden="true"
               />
-              <span className="flex-1 text-[11px] font-mono text-gray-400">{localColor}</span>
+              <span className="flex-1 text-base font-mono text-gray-400">{localColor}</span>
               <input
                 type="color"
                 value={localColor}
                 aria-label="Pick colour"
                 className="h-0 w-0 opacity-0"
-                onChange={(e) => setLocalColor(e.target.value)}
                 onBlur={(e) => applyColor(e.target.value)}
+                onChange={(e) => setLocalColor(e.target.value)}
               />
-              <span className="rounded-md bg-white/10 px-3 py-1.5 text-[11px] text-white hover:bg-white/20">
+              <span className="rounded-md bg-white/10 px-3 py-1.5 text-base text-white hover:bg-white/20">
                 Pick
               </span>
             </label>
@@ -439,30 +463,60 @@ function LightControlModal({ hotspot, entityState, onClose }: LightControlModalP
 
           {/* Preset swatches */}
           <div>
-            <p className="mb-2 text-[11px] font-medium text-gray-400">
+            <p className="mb-2 text-base font-medium text-gray-400">
               Presets{" "}
               <span className="font-normal text-gray-600">— tap to apply · hold to save</span>
             </p>
             <div className="flex gap-2">
-              {presets.map((color, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  aria-label={
-                    color ? `Preset ${index + 1}: ${color}` : `Save current colour to preset ${index + 1}`
-                  }
-                  onPointerDown={() => handlePresetPointerDown(index)}
-                  onPointerUp={() => handlePresetPointerUp(index)}
-                  onPointerCancel={() => handlePresetPointerCancel(index)}
-                  onContextMenu={(e) => e.preventDefault()}
-                  className="flex h-10 flex-1 items-center justify-center rounded-lg border border-white/20 transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: color ?? "transparent" }}
-                >
-                  {!color && (
-                    <span className="text-base leading-none text-white/30">+</span>
-                  )}
-                </button>
-              ))}
+              {presets.map((color, index) => {
+                const isWhiteReset = index === 0;
+                const effectiveColor = isWhiteReset ? "#ffffff" : color;
+                const btn = (
+                  <button
+                    key={index}
+                    type="button"
+                    aria-label={
+                      isWhiteReset
+                        ? "Reset to white"
+                        : effectiveColor
+                          ? `Preset ${index + 1}: ${effectiveColor}`
+                          : `Save current colour to preset ${index + 1}`
+                    }
+                    onPointerDown={() => {
+                      if (!isWhiteReset) handlePresetPointerDown(index);
+                    }}
+                    onPointerUp={() => {
+                      if (isWhiteReset) {
+                        applyColor("#ffffff");
+                      } else {
+                        handlePresetPointerUp(index);
+                      }
+                    }}
+                    onPointerCancel={() => {
+                      if (!isWhiteReset) handlePresetPointerCancel(index);
+                    }}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className={[
+                      "flex h-10 items-center justify-center rounded-lg transition-opacity hover:opacity-80",
+                      isWhiteReset
+                        ? "w-full border-2 border-red-500"
+                        : "flex-1 border border-white/20",
+                    ].join(" ")}
+                    style={{ backgroundColor: effectiveColor ?? "transparent" }}
+                  >
+                    {!isWhiteReset && !effectiveColor && (
+                      <span className="text-2xl leading-none text-white/30">+</span>
+                    )}
+                  </button>
+                );
+
+                return isWhiteReset ? (
+                  <div key={index} className="flex flex-1 flex-col items-center gap-1">
+                    {btn}
+                    <span className="text-xs text-gray-500">white</span>
+                  </div>
+                ) : btn;
+              })}
             </div>
           </div>
         </div>
