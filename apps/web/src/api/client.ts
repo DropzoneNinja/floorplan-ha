@@ -183,6 +183,10 @@ export const api = {
       request<{ readings: Array<{ time: string; value: number }> }>(
         `/ha/history-range/${encodeURIComponent(entityId)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
       ),
+    statistics: (entityId: string, start: string, end: string, period: "5minute" | "hour" | "day" | "week" | "month" = "month", types: string = "change") =>
+      request<{ statistics: Array<{ start: number; max: number | null; min: number | null; mean: number | null; sum: number | null; state: number | null; change: number | null }> }>(
+        `/ha/statistics/${encodeURIComponent(entityId)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&period=${period}&types=${encodeURIComponent(types)}`,
+      ),
   },
 
   // Backup & Restore

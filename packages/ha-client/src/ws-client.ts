@@ -38,6 +38,8 @@ export class HaWebSocketClient {
   private readonly pingTimeout: number;
   private readonly wsUrl: string;
   private readonly token: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly pendingCommands = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
 
   constructor(private readonly config: HaClientConfig) {
     this.wsUrl = config.baseUrl.replace(/^http/, "ws").replace(/\/$/, "") + "/api/websocket";
@@ -151,18 +153,29 @@ export class HaWebSocketClient {
         }
         break;
 
-      case "result":
-        if (!msg.success && msg.error) {
-          this.emit({
-            type: "error",
-            error: new Error(`HA WS error [${msg.error.code}]: ${msg.error.message}`),
-          });
-        }
-        // If this is the subscribe confirmation, record the subscription id
-        if (msg.success && this.subscriptionId === null) {
-          this.subscriptionId = msg.id;
+      case "result": {
+        const pending = this.pendingCommands.get(msg.id);
+        if (pending) {
+          this.pendingCommands.delete(msg.id);
+          if (msg.success) {
+            pending.resolve(msg.result);
+          } else {
+            pending.reject(new Error(`HA WS error [${msg.error?.code}]: ${msg.error?.message}`));
+          }
+        } else {
+          if (!msg.success && msg.error) {
+            this.emit({
+              type: "error",
+              error: new Error(`HA WS error [${msg.error.code}]: ${msg.error.message}`),
+            });
+          }
+          // If this is the subscribe confirmation, record the subscription id
+          if (msg.success && this.subscriptionId === null) {
+            this.subscriptionId = msg.id;
+          }
         }
         break;
+      }
 
       case "event":
         if (msg.event.event_type === "state_changed") {
@@ -218,6 +231,51 @@ export class HaWebSocketClient {
       this.pendingPingId = null;
       this.ws?.terminate();
     }, this.pingTimeout);
+  }
+
+  /** Send a one-shot WebSocket command and return the result. Rejects if not connected. */
+  sendCommand<T>(type: string, payload: Record<string, unknown>, timeoutMs = 10000): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (this.state !== "connected" || !this.ws) {
+        reject(new Error("HA WebSocket not connected"));
+        return;
+      }
+      const id = this.nextId();
+      const timer = setTimeout(() => {
+        this.pendingCommands.delete(id);
+        reject(new Error(`HA WS command '${type}' timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      this.pendingCommands.set(id, {
+        resolve: (v) => { clearTimeout(timer); resolve(v as T); },
+        reject: (e) => { clearTimeout(timer); reject(e); },
+      });
+      this.ws.send(JSON.stringify({ id, type, ...payload }));
+    });
+  }
+
+  /** Long-term statistics (survives history purge). Uses WS because HA has no REST equivalent. */
+  getStatisticsDuringPeriod(
+    entityId: string,
+    startTime: string,
+    endTime: string,
+    period: "5minute" | "hour" | "day" | "week" | "month",
+    types: Array<"max" | "min" | "mean" | "sum" | "state" | "change">,
+  // HA returns `start` as epoch milliseconds (number), not an ISO string
+  ): Promise<Array<{ start: number; max: number | null; min: number | null; mean: number | null; sum: number | null; state: number | null; change: number | null }>> {
+    return this.sendCommand<Record<string, Array<{ start: number; max?: number | null; min?: number | null; mean?: number | null; sum?: number | null; state?: number | null; change?: number | null }>>>(
+      "recorder/statistics_during_period",
+      { start_time: startTime, end_time: endTime, statistic_ids: [entityId], period, types },
+    ).then((raw) =>
+      (raw[entityId] ?? []).map((s) => ({
+        start: s.start,
+        max: s.max ?? null,
+        min: s.min ?? null,
+        mean: s.mean ?? null,
+        sum: s.sum ?? null,
+        state: s.state ?? null,
+        change: s.change ?? null,
+      })),
+    );
   }
 
   private scheduleReconnect(): void {

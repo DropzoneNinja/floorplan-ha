@@ -116,6 +116,36 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /** GET /api/ha/statistics/:entityId?start=ISO&end=ISO&period=month&types=max,min — long-term statistics (survives history purge) */
+  app.get("/statistics/:entityId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId } = request.params as { entityId: string };
+    const { start, end, period = "month", types = "max" } = request.query as { start?: string; end?: string; period?: string; types?: string };
+
+    if (!start || !end) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Query params 'start' and 'end' are required (ISO 8601)" });
+    }
+    const validPeriods = ["5minute", "hour", "day", "week", "month"] as const;
+    type ValidPeriod = typeof validPeriods[number];
+    if (!validPeriods.includes(period as ValidPeriod)) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "period must be one of: 5minute, hour, day, week, month" });
+    }
+    const validTypes = ["max", "min", "mean", "sum", "state", "change"] as const;
+    type ValidType = typeof validTypes[number];
+    const typeList = types.split(",").map((t) => t.trim()) as ValidType[];
+    if (typeList.some((t) => !validTypes.includes(t))) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "types must be a comma-separated list of: max, min, mean, sum, state, change" });
+    }
+
+    const ha = getHaService();
+    try {
+      const stats = await ha.getStatisticsDuringPeriod(entityId, start, end, period as ValidPeriod, typeList);
+      return reply.send({ statistics: stats });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
   /** GET /api/ha/history-range/:entityId?start=YYYY-MM-DD&end=YYYY-MM-DD — readings over a date range */
   app.get("/history-range/:entityId", { preHandler: [requireAuth] }, async (request, reply) => {
     const { entityId } = request.params as { entityId: string };

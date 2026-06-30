@@ -124,6 +124,17 @@ class HaService {
     return this.rest.getHistory(entityId, start, end);
   }
 
+  getStatisticsDuringPeriod(
+    entityId: string,
+    startTime: string,
+    endTime: string,
+    period: "5minute" | "hour" | "day" | "week" | "month",
+    types: Array<"max" | "min" | "mean" | "sum" | "state" | "change">,
+  ) {
+    // statistics_during_period is WS-only in HA — no REST equivalent
+    return this.ws.getStatisticsDuringPeriod(entityId, startTime, endTime, period, types);
+  }
+
   async callService(
     domain: string,
     service: string,

@@ -265,15 +265,24 @@ function DailySparkline({ entityId, color }: { entityId: string | null; color: s
 
 const MONTH_LETTERS = "JFMAMJJASOND";
 
-/** Monthly: always 12 bars (oldest→newest), zero if no data. Label = first letter of month */
+/** Monthly: always 12 bars (oldest→newest), zero if no data. Label = first letter of month.
+ *  Tries HA long-term statistics first (survives history purge); falls back to historyRange
+ *  for slots that statistics left empty — historyRange reliably covers recent months. */
 function MonthlySparkline({ entityId, color }: { entityId: string | null; color: string }) {
   const today = new Date();
   const startD = new Date(today.getFullYear(), today.getMonth() - 11, 1);
-  const start = isoDate(startD);
-  const end = isoDate(today);
-  const { data } = useQuery({
-    queryKey: ["rain-monthly", entityId, start],
-    queryFn: () => api.ha.historyRange(entityId!, start, end),
+  const startStr = isoDate(startD);
+  const endStr = isoDate(today);
+
+  const { data: statsData } = useQuery({
+    queryKey: ["rain-monthly-stats", entityId, startStr],
+    queryFn: () => api.ha.statistics(entityId!, `${startStr}T00:00:00`, `${endStr}T23:59:59`, "month", "change"),
+    enabled: !!entityId,
+    staleTime: 30 * 60 * 1000,
+  });
+  const { data: histData } = useQuery({
+    queryKey: ["rain-monthly-hist", entityId, startStr],
+    queryFn: () => api.ha.historyRange(entityId!, startStr, endStr),
     enabled: !!entityId,
     staleTime: 30 * 60 * 1000,
   });
@@ -283,12 +292,24 @@ function MonthlySparkline({ entityId, color }: { entityId: string | null; color:
     const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1);
     return { key: `${d.getFullYear()}-${d.getMonth()}`, year: d.getFullYear(), month: d.getMonth(), value: 0 };
   });
-  for (const r of data?.readings ?? []) {
+
+  // Apply long-term statistics: `change` = rain that fell in each calendar month
+  // (works for total_increasing sensors like GW3000C rain gauges)
+  for (const s of statsData?.statistics ?? []) {
+    const d = new Date(s.start); // s.start is epoch ms from HA
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const slot = slots.find((sl) => sl.key === key);
+    if (slot && s.change !== null && s.change > 0) slot.value = s.change;
+  }
+
+  // Fill remaining empty slots from history (covers recent months within HA's purge window)
+  for (const r of histData?.readings ?? []) {
     const d = new Date(r.time);
     const key = `${d.getFullYear()}-${d.getMonth()}`;
-    const slot = slots.find((s) => s.key === key);
-    if (slot) slot.value = r.value;
+    const slot = slots.find((sl) => sl.key === key);
+    if (slot) slot.value = r.value; // last reading per month wins (chronological order)
   }
+
   const YEAR_COLORS = ["rgba(255,255,255,0.75)", "rgba(96,165,250,0.9)"];
   let yearColorIdx = 0;
   let lastYear = slots[0]?.year ?? -1;
@@ -302,23 +323,40 @@ function MonthlySparkline({ entityId, color }: { entityId: string | null; color:
   return <LabelledSparkline bars={bars} color={color} labelFontSize={13} />;
 }
 
-/** Yearly: line chart of cumulative rain Jan 1 → today for the current year. */
+/** Yearly: line chart of cumulative rain Jan 1 → today for the current year.
+ *  Tries HA daily statistics first; falls back to historyRange for recent days. */
 function YearlySparkline({ entityId, color }: { entityId: string | null; color: string }) {
   const today = new Date();
   const year = today.getFullYear();
   const start = `${year}-01-01`;
   const end = isoDate(today);
 
-  const { data } = useQuery({
-    queryKey: ["rain-yearly-accum", entityId, year],
+  const { data: statsData } = useQuery({
+    queryKey: ["rain-yearly-stats", entityId, year],
+    queryFn: () => api.ha.statistics(entityId!, `${start}T00:00:00`, `${end}T23:59:59`, "day", "change"),
+    enabled: !!entityId,
+    staleTime: 60 * 60 * 1000,
+  });
+  const { data: histData } = useQuery({
+    queryKey: ["rain-yearly-hist", entityId, year],
     queryFn: () => api.ha.historyRange(entityId!, start, end),
     enabled: !!entityId,
     staleTime: 60 * 60 * 1000,
   });
 
-  // Last reading per calendar day
+  // Build cumulative-by-day map.
+  // Statistics give daily `change` (rain that fell each day) → accumulate from Jan 1.
+  // History gives the running annual total per reading → use last reading per day as-is.
+  // Statistics cover the full year; history fills recent days where statistics lag.
   const byDay = new Map<string, number>();
-  for (const r of data?.readings ?? []) {
+  let cumulative = 0;
+  for (const s of statsData?.statistics ?? []) {
+    cumulative += s.change ?? 0;
+    byDay.set(isoDate(new Date(s.start)), cumulative);
+  }
+  // History readings already represent the cumulative annual total — overwrite recent days
+  // so today's bar reflects the live value even before statistics catch up.
+  for (const r of histData?.readings ?? []) {
     byDay.set(isoDate(new Date(r.time)), r.value);
   }
 
