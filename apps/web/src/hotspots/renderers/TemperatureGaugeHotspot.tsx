@@ -34,22 +34,25 @@ export function TemperatureGaugeHotspot({ hotspot, entityState, ruleResult, isEd
   const displayMode = config.displayMode ?? "full";
   const label = ruleResult?.textOverride ?? displayTemp;
 
+  const isUnavailable = hotspot.entityId !== null && entityState?.state === "unavailable";
+
   const handleClick = (e: React.MouseEvent) => {
     if (isEditMode) return;
     e.stopPropagation();
     toggle(hotspot.zIndex);
   };
 
-  // ── Minimal mode — temperature text only ───────────────────────────────────
+  // ── Minimal mode — temperature text only, visible only when heatmap is active
   if (displayMode === "minimal") {
+    if (!isVisible && !isEditMode) return null;
     const textColor = config.textColor ?? stateStyle.color ?? ringColor;
     return (
       <button
         type="button"
         className="flex h-full w-full items-center justify-center focus:outline-none"
         onClick={handleClick}
-        aria-label={`${hotspot.name}: ${displayTemp}`}
-        style={{ opacity, cursor: isEditMode ? "default" : "pointer", containerType: "size" }}
+        aria-label={`${hotspot.name}: ${isUnavailable ? "unavailable" : displayTemp}`}
+        style={{ opacity, cursor: isEditMode ? "default" : "pointer", containerType: "size", position: "relative" }}
       >
         <span
           style={{
@@ -63,6 +66,7 @@ export function TemperatureGaugeHotspot({ hotspot, entityState, ruleResult, isEd
         >
           {label}
         </span>
+        {isUnavailable && <UnavailableX />}
       </button>
     );
   }
@@ -74,7 +78,7 @@ export function TemperatureGaugeHotspot({ hotspot, entityState, ruleResult, isEd
       type="button"
       className="flex h-full w-full items-center justify-center focus:outline-none"
       onClick={handleClick}
-      aria-label={`${hotspot.name}: ${displayTemp}`}
+      aria-label={`${hotspot.name}: ${isUnavailable ? "unavailable" : displayTemp}`}
       style={{ opacity, cursor: isEditMode ? "default" : "pointer", containerType: "size" }}
     >
       <div
@@ -138,12 +142,33 @@ export function TemperatureGaugeHotspot({ hotspot, entityState, ruleResult, isEd
             }}
           />
         )}
+
+        {isUnavailable && <UnavailableX />}
       </div>
     </button>
   );
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function UnavailableX() {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    >
+      <line x1="20" y1="20" x2="80" y2="80" stroke="#ef4444" strokeWidth="8" strokeLinecap="round" />
+      <line x1="80" y1="20" x2="20" y2="80" stroke="#ef4444" strokeWidth="8" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 /** Colour stops for the temperature scale (in °C). */
 export const TEMP_STOPS: Array<{ temp: number; r: number; g: number; b: number }> = [
