@@ -144,36 +144,85 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
     }
 
     // ── Indoor layer ─────────────────────────────────────────────────────────
+    // IDW-blended indoor layer: each gauge dominates near its own origin and
+    // blends smoothly toward neighbours, instead of later gauges overwriting
+    // earlier ones via source-over.  Computed at 1/8 resolution and scaled up —
+    // heatmaps are smooth low-frequency signals so the bilinear upsample is fine.
     if (indoorGauges.length > 0) {
-      const indoorCanvas = new OffscreenCanvas(CANVAS_W, CANVAS_H);
-      const iCtx = indoorCanvas.getContext("2d")!;
+      const gaugesWithTemp = indoorGauges
+        .map((g) => {
+          const tempC = resolveGaugeTempC(g, states);
+          if (tempC === null) return null;
+          const config = g.configJson as TemperatureGaugeConfig;
+          return { x: g.x, y: g.y, radius: config.radius, tempC };
+        })
+        .filter(Boolean) as Array<{ x: number; y: number; radius: number; tempC: number }>;
 
-      for (const gauge of indoorGauges) {
-        const config = gauge.configJson as TemperatureGaugeConfig;
-        const tempC = resolveGaugeTempC(gauge, states);
-        if (tempC === null) continue;
+      if (gaugesWithTemp.length > 0) {
+        const IDW_W = 240;
+        const IDW_H = 135;
+        const imgData = new ImageData(IDW_W, IDW_H);
+        const d = imgData.data;
 
-        const cx = gauge.x * CANVAS_W;
-        const cy = gauge.y * CANVAS_H;
-        const radius = config.radius * CANVAS_W;
+        for (let py = 0; py < IDW_H; py++) {
+          for (let px = 0; px < IDW_W; px++) {
+            // Map IDW pixel → full-canvas pixel space so radius (fraction of CANVAS_W)
+            // is in the same units as the distance calculation.
+            const fullX = (px + 0.5) / IDW_W * CANVAS_W;
+            const fullY = (py + 0.5) / IDW_H * CANVAS_H;
 
-        const gradient = iCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        gradient.addColorStop(0, tempToColor(tempC, 0.85));
-        gradient.addColorStop(0.6, tempToColor(tempC, 0.45));
-        gradient.addColorStop(1, "rgba(0,0,0,0)");
+            let weightedTemp = 0;
+            let totalWeight = 0;
 
-        iCtx.globalCompositeOperation = "source-over";
-        iCtx.fillStyle = gradient;
-        iCtx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            for (const g of gaugesWithTemp) {
+              const dx = fullX - g.x * CANVAS_W;
+              const dy = fullY - g.y * CANVAS_H;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const radius = g.radius * CANVAS_W;
+              const t = dist / radius;
+              if (t >= 1) continue;
+
+              // Mirror the original gradient stops (0.85 → 0.45 → 0) so the
+              // falloff shape is identical to the previous radial-gradient approach.
+              const alpha = t <= 0.6
+                ? 0.85 - 0.40 * (t / 0.6)
+                : 0.45 * (1 - (t - 0.6) / 0.4);
+
+              weightedTemp += alpha * g.tempC;
+              totalWeight += alpha;
+            }
+
+            const idx = (py * IDW_W + px) * 4;
+            if (totalWeight > 0.01) {
+              const blendedTemp = weightedTemp / totalWeight;
+              const finalAlpha = Math.min(0.85, totalWeight);
+              const [cr, cg, cb] = tempToRgb(blendedTemp);
+              d[idx]     = cr;
+              d[idx + 1] = cg;
+              d[idx + 2] = cb;
+              d[idx + 3] = Math.round(finalAlpha * 255);
+            }
+          }
+        }
+
+        const smallCanvas = new OffscreenCanvas(IDW_W, IDW_H);
+        const smallCtx = smallCanvas.getContext("2d")!;
+        smallCtx.putImageData(imgData, 0, 0);
+
+        const indoorCanvas = new OffscreenCanvas(CANVAS_W, CANVAS_H);
+        const iCtx = indoorCanvas.getContext("2d")!;
+        iCtx.imageSmoothingEnabled = true;
+        iCtx.imageSmoothingQuality = "high";
+        iCtx.drawImage(smallCanvas, 0, 0, CANVAS_W, CANVAS_H);
+
+        // Clip the indoor layer to the house interior using the mask.
+        if (mask) {
+          iCtx.globalCompositeOperation = "destination-in";
+          iCtx.drawImage(mask, 0, 0, CANVAS_W, CANVAS_H);
+        }
+
+        ctx.drawImage(indoorCanvas, 0, 0);
       }
-
-      // Clip the indoor layer to the house interior using the mask.
-      if (mask) {
-        iCtx.globalCompositeOperation = "destination-in";
-        iCtx.drawImage(mask, 0, 0, CANVAS_W, CANVAS_H);
-      }
-
-      ctx.drawImage(indoorCanvas, 0, 0);
     }
   }
 
@@ -276,6 +325,26 @@ function HeatmapLegend() {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function tempToRgb(tempC: number): [number, number, number] {
+  const first = TEMP_STOPS[0]!;
+  const last = TEMP_STOPS[TEMP_STOPS.length - 1]!;
+  if (tempC <= first.temp) return [first.r, first.g, first.b];
+  if (tempC >= last.temp) return [last.r, last.g, last.b];
+  for (let i = 0; i < TEMP_STOPS.length - 1; i++) {
+    const lo = TEMP_STOPS[i]!;
+    const hi = TEMP_STOPS[i + 1]!;
+    if (tempC >= lo.temp && tempC <= hi.temp) {
+      const t = (tempC - lo.temp) / (hi.temp - lo.temp);
+      return [
+        Math.round(lo.r + t * (hi.r - lo.r)),
+        Math.round(lo.g + t * (hi.g - lo.g)),
+        Math.round(lo.b + t * (hi.b - lo.b)),
+      ];
+    }
+  }
+  return [128, 128, 128];
+}
 
 function resolveGaugeTempC(
   gauge: HotspotRaw | undefined,
