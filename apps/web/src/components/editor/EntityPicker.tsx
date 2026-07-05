@@ -53,8 +53,10 @@ export function EntityPicker({ value, onChange, label = "Entity" }: EntityPicker
       >
         <span className="truncate">
           {selected
-            ? selected.attributes.friendly_name ?? selected.entityId
-            : <span className="text-gray-500">— None —</span>
+            ? (selected.attributes.friendly_name ?? selected.entityId)
+            : value
+              ? <span className="text-amber-400" title="Entity ID is saved but not found in Home Assistant">{value}</span>
+              : <span className="text-gray-500">— None —</span>
           }
         </span>
         <svg className="ml-1 h-3 w-3 shrink-0 text-gray-400" viewBox="0 0 10 6" fill="none">

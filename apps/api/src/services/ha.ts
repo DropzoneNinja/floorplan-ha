@@ -14,11 +14,14 @@ type StateChangeCallback = (entityState: EntityState) => void;
  * - In-memory entity state cache
  * - State change subscriber callbacks (used by the SSE route)
  */
+const PERIODIC_HYDRATION_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 class HaService {
   private rest: HaRestClient;
   private ws: HaWebSocketClient;
   private stateCache = new Map<string, EntityState>();
   private subscribers = new Set<StateChangeCallback>();
+  private hydrationTimer: ReturnType<typeof setInterval> | null = null;
   private connectionStatus: HaConnectionStatus = {
     connected: false,
     lastConnectedAt: null,
@@ -39,7 +42,8 @@ class HaService {
             error: null,
           };
           // Hydrate cache with latest states on connect/reconnect
-          this.hydrateCache();
+          void this.hydrateCache(false);
+          this.startPeriodicHydration();
           break;
 
         case "disconnected":
@@ -48,6 +52,7 @@ class HaService {
             connected: false,
             error: event.reason,
           };
+          this.stopPeriodicHydration();
           break;
 
         case "state_changed":
@@ -71,13 +76,43 @@ class HaService {
 
   /** Gracefully disconnect. Called on server shutdown. */
   disconnect(): void {
+    this.stopPeriodicHydration();
     this.ws.disconnect();
   }
 
-  private async hydrateCache(): Promise<void> {
+  private startPeriodicHydration(): void {
+    this.stopPeriodicHydration();
+    this.hydrationTimer = setInterval(() => {
+      void this.hydrateCache(true);
+    }, PERIODIC_HYDRATION_INTERVAL_MS);
+  }
+
+  private stopPeriodicHydration(): void {
+    if (this.hydrationTimer) {
+      clearInterval(this.hydrationTimer);
+      this.hydrationTimer = null;
+    }
+  }
+
+  /**
+   * Fetch all entity states from HA REST and update the cache.
+   * When notify=true, push any changed states to SSE subscribers so
+   * connected clients receive corrections without waiting for a reconnect.
+   */
+  private async hydrateCache(notify: boolean): Promise<void> {
     try {
       const states = await this.rest.getStates();
       for (const s of states) {
+        if (notify) {
+          const cached = this.stateCache.get(s.entityId);
+          if (!cached || cached.state !== s.state) {
+            this.stateCache.set(s.entityId, s);
+            for (const cb of this.subscribers) {
+              cb(s);
+            }
+            continue;
+          }
+        }
         this.stateCache.set(s.entityId, s);
       }
       console.log(`[ha-service] Hydrated ${states.length} entity states`);
