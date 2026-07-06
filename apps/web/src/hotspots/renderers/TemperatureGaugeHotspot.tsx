@@ -56,9 +56,9 @@ function TempHistoryModal({ entityId, name, unit, currentTempC, onClose }: TempH
 
   // Chart constants
   const CHART_W = 460;
-  const CHART_H = 120;
+  const CHART_H = 180;
   const PAD_T = 8;
-  const PAD_B = 6;
+  const PAD_B = 10;
   const plotH = CHART_H - PAD_T - PAD_B;
 
   const temps = readings.map((r) => r.tempC);
@@ -84,7 +84,7 @@ function TempHistoryModal({ entityId, name, unit, currentTempC, onClose }: TempH
   const lastR = readings[readings.length - 1];
   const areaPts =
     readings.length >= 2 && firstR && lastR
-      ? `${linePts} ${toX(lastR.time).toFixed(1)},${CHART_H} ${toX(firstR.time).toFixed(1)},${CHART_H}`
+      ? `${linePts} ${toX(lastR.time).toFixed(1)},${CHART_H - PAD_B} ${toX(firstR.time).toFixed(1)},${CHART_H - PAD_B}`
       : "";
 
   // Y-axis ticks
@@ -93,11 +93,18 @@ function TempHistoryModal({ entityId, name, unit, currentTempC, onClose }: TempH
   const yTicks: number[] = [];
   for (let t = firstTick; t <= maxTemp; t += tickStep) yTicks.push(t);
 
-  // X-axis labels
-  const xLabels = [0, 6, 12, 18, 24].map((h) => ({
-    label: h === 0 ? "-24h" : h === 24 ? "now" : `${h}h`,
-    pct: (h / 24) * 100,
-  }));
+  // X-axis: labels at 12am/6am/12pm/6pm, minor ticks every hour — all at actual clock positions
+  const HOUR_LABEL: Record<number, string> = { 0: "12am", 6: "6am", 12: "12pm", 18: "6pm" };
+  const firstHourMs = Math.ceil(cutoff / 3_600_000) * 3_600_000;
+  const xTicks: Array<{ pct: number; isMajor: boolean }> = [];
+  const xLabels: Array<{ label: string; pct: number }> = [];
+  for (let t = firstHourMs; t <= cutoff + xRange; t += 3_600_000) {
+    const pct = (t - cutoff) / xRange * 100;
+    const h = new Date(t).getHours();
+    const isMajor = h % 6 === 0;
+    xTicks.push({ pct, isMajor });
+    if (isMajor) xLabels.push({ label: HOUR_LABEL[h] ?? "", pct });
+  }
 
   // Line color based on current (or mean) temp
   const meanTempC = temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : 20;
@@ -109,43 +116,47 @@ function TempHistoryModal({ entityId, name, unit, currentTempC, onClose }: TempH
     return `${Math.round(tempC)}°C`;
   }
 
+  function fmtTime(ms: number): string {
+    const d = new Date(ms);
+    const h = d.getHours();
+    const m = d.getMinutes();
+    const base = h === 0 || h === 12 ? "12" : h < 12 ? String(h) : String(h - 12);
+    const suffix = h < 12 ? "am" : "pm";
+    return m === 0 ? `${base}${suffix}` : `${base}:${String(m).padStart(2, "0")}${suffix}`;
+  }
+
+  const maxReading = readings.length > 0
+    ? readings.reduce((best, r) => r.tempC > best.tempC ? r : best)
+    : null;
+  const minReading = readings.length > 0
+    ? readings.reduce((best, r) => r.tempC < best.tempC ? r : best)
+    : null;
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-[50vw] rounded-2xl p-8 mx-auto"
+        className="w-[75vw] rounded-2xl p-12 mx-auto"
         style={{ backgroundColor: "#1a2744" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <svg viewBox="0 0 24 24" style={{ width: 32, height: 32, fill: lineColor, flexShrink: 0 }} aria-hidden="true">
+        <div className="flex items-center justify-between mb-9">
+          <div className="flex items-center gap-5">
+            <svg viewBox="0 0 24 24" style={{ width: 48, height: 48, fill: lineColor, flexShrink: 0 }} aria-hidden="true">
               <path d="M15 13V5a3 3 0 0 0-6 0v8a5 5 0 1 0 6 0zm-3 7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z" />
             </svg>
             <div>
-              <span className="text-2xl font-semibold text-white">{name}</span>
-              <span className="block text-sm text-white/50">Last 24 hours</span>
+              <span className="text-4xl font-semibold text-white">{name}</span>
+              <span className="block text-xl text-white/50">Last 24 hours</span>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {currentTempC !== null && (
-              <span
-                className="px-3 py-1 rounded-full text-sm font-bold"
-                style={{
-                  backgroundColor: `${lineColor}33`,
-                  color: lineColor,
-                  border: `1px solid ${lineColor}66`,
-                }}
-              >
-                {fmtTemp(currentTempC)}
-              </span>
-            )}
             <button
               onClick={onClose}
-              className="text-white/50 hover:text-white/80 transition-colors text-3xl leading-none"
+              className="text-white/50 hover:text-white/80 transition-colors text-5xl leading-none"
             >
               ✕
             </button>
@@ -154,25 +165,27 @@ function TempHistoryModal({ entityId, name, unit, currentTempC, onClose }: TempH
 
         {/* Chart */}
         {isLoading ? (
-          <div className="flex items-center justify-center" style={{ height: 160 }}>
-            <span className="text-sm text-gray-400">Loading…</span>
+          <div className="flex items-center justify-center" style={{ height: 240 }}>
+            <span className="text-xl text-gray-400">Loading…</span>
           </div>
         ) : readings.length < 2 ? (
-          <div className="flex items-center justify-center" style={{ height: 160 }}>
-            <span className="text-sm text-gray-500">No data available</span>
+          <div className="flex items-center justify-center" style={{ height: 240 }}>
+            <span className="text-xl text-gray-500">No data available</span>
           </div>
         ) : (
-          <div className="flex">
+          <div className="flex gap-6 items-start">
+            {/* Chart: Y-axis + SVG + X-labels */}
+            <div className="flex flex-1 min-w-0">
             {/* Y-axis labels — CSS, outside SVG */}
             <div
               className="shrink-0 flex flex-col justify-between items-end pr-2"
-              style={{ width: 40, height: CHART_H + 20 }}
+              style={{ width: 60, height: CHART_H + 30 }}
             >
               {[...yTicks].reverse().map((tick) => (
                 <span
                   key={tick}
                   style={{
-                    fontSize: 11,
+                    fontSize: 17,
                     color: "rgba(255,255,255,0.4)",
                     fontFamily: "system-ui, sans-serif",
                     lineHeight: 1,
@@ -218,27 +231,85 @@ function TempHistoryModal({ entityId, name, unit, currentTempC, onClose }: TempH
                     strokeLinecap="round"
                   />
                 )}
+
+                {/* X-axis baseline */}
+                <line
+                  x1={0} y1={CHART_H - PAD_B}
+                  x2={CHART_W} y2={CHART_H - PAD_B}
+                  stroke="rgba(255,255,255,0.15)"
+                  strokeWidth="1"
+                />
+
+                {/* Hourly tick marks — minor every 1h, major at 12/6 clock boundaries */}
+                {xTicks.map(({ pct, isMajor }) => {
+                  const x = (pct / 100) * CHART_W;
+                  return (
+                    <line
+                      key={pct}
+                      x1={x} y1={CHART_H - PAD_B}
+                      x2={x} y2={CHART_H - PAD_B + (isMajor ? 8 : 4)}
+                      stroke={isMajor ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.15)"}
+                      strokeWidth="1"
+                    />
+                  );
+                })}
               </svg>
 
               {/* X-axis labels */}
-              <div className="relative" style={{ height: 20 }}>
+              <div className="relative" style={{ height: 30 }}>
                 {xLabels.map(({ label, pct }) => (
                   <div
                     key={label}
                     style={{
                       position: "absolute",
                       left: `${pct}%`,
-                      transform: "translateX(-50%)",
-                      fontSize: 11,
+                      transform: pct < 5 ? "translateX(0)" : pct > 95 ? "translateX(-100%)" : "translateX(-50%)",
+                      fontSize: 17,
                       color: "rgba(255,255,255,0.4)",
                       fontFamily: "system-ui, sans-serif",
-                      lineHeight: "20px",
+                      lineHeight: "30px",
                       whiteSpace: "nowrap",
                     }}
                   >
                     {label}
                   </div>
                 ))}
+              </div>
+            </div>
+            </div>{/* end chart wrapper */}
+
+            {/* Stats box */}
+            <div
+              className="shrink-0 rounded-xl flex flex-col p-5"
+              style={{
+                width: 220,
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                gap: 0,
+              }}
+            >
+              {/* Current */}
+              <div className="flex flex-col" style={{ paddingBottom: 16 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Current</span>
+                <span style={{ fontSize: 20, fontWeight: 700, color: lineColor, lineHeight: 1 }}>{currentTempC !== null ? fmtTemp(currentTempC) : "—"}</span>
+              </div>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }} />
+              {/* High */}
+              <div className="flex flex-col" style={{ paddingBottom: 16 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>High</span>
+                <div className="flex items-baseline gap-2">
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "#ffffff", lineHeight: 1 }}>{maxReading ? fmtTemp(maxReading.tempC) : "—"}</span>
+                  {maxReading && <span style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>at {fmtTime(maxReading.time)}</span>}
+                </div>
+              </div>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }} />
+              {/* Low */}
+              <div className="flex flex-col">
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Low</span>
+                <div className="flex items-baseline gap-2">
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "#ffffff", lineHeight: 1 }}>{minReading ? fmtTemp(minReading.tempC) : "—"}</span>
+                  {minReading && <span style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>at {fmtTime(minReading.time)}</span>}
+                </div>
               </div>
             </div>
           </div>
