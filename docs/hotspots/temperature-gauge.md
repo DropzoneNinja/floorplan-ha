@@ -33,6 +33,27 @@ Fahrenheit values are converted to Celsius internally for colour mapping.
 
 ---
 
+## Humidity mode
+
+Each gauge can optionally be linked to a second HA entity — a humidity sensor for the same location. Once linked, you can switch the *entire floorplan* between temperature and humidity display using the rocker switch on any full-mode gauge:
+
+1. Every full-mode gauge shows a small 🌡 / 💧 rocker switch below its value. Tap the droplet side to switch every gauge on the floorplan (including minimal-mode ones) to `%` humidity, and recolour the heatmap (if visible) using the humidity scale below.
+2. Tap the thermometer side to switch back to temperature.
+
+Gauges without a linked humidity entity show `—` while in humidity mode. The mode is global and persists per browser session (same as heatmap visibility) until switched back. The 24-hour history popup (opened with a normal tap once the heatmap is visible) shows history for whichever metric is currently active — temperature history in temperature mode, humidity history (from that gauge's linked humidity entity) in humidity mode.
+
+### Humidity colour scale
+
+| Humidity (%RH) | Colour          |
+|-----------------|-----------------|
+|   ≤ 20          | 🟠 Amber (dry)  |
+|    35            | 🟡 Yellow-green |
+|    50            | 🟢 Green        |
+|    65            | 🩵 Cyan         |
+|   ≥ 85           | 🔵 Blue (humid) |
+
+---
+
 ## Step 1 — Create the mask image
 
 The mask is a PNG image with the **same aspect ratio as your floorplan image** (ideally the same resolution).
@@ -94,8 +115,11 @@ Repeat for each room or temperature sensor inside the house:
 
 1. Click **Add Hotspot** → **Temperature Gauge 🌡️**.
 2. Drag it to the sensor's physical location on the floorplan (centre of the room works well).
-3. **Entity** tab → connect to the room's temperature sensor entity
-   (e.g. `sensor.living_room_temperature`).
+3. **Entity** tab:
+   - Connect the **Home Assistant entity** field to the room's temperature sensor
+     (e.g. `sensor.living_room_temperature`).
+   - **Humidity sensor entity (optional)**: connect the room's humidity sensor
+     (e.g. `sensor.living_room_humidity`) to enable humidity mode for this gauge — see [Humidity mode](#humidity-mode) below.
 4. **Actions** tab:
    - **Sensor type**: **🛋 Inside**
    - **Temperature unit**: °C or °F

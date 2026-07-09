@@ -199,6 +199,7 @@ registerHotspotType({
     isOutside: false,
     unit: "celsius",
     radius: 0.25,
+    humidityEntityId: null,
   },
 });
 

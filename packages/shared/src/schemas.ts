@@ -107,6 +107,7 @@ export const TemperatureGaugeConfigSchema = z.object({
   radius: z.number().min(0.01).max(1).default(0.25),
   displayMode: z.enum(["full", "minimal"]).default("full"),
   textColor: z.string().nullable().default(null),
+  humidityEntityId: z.string().nullable().default(null),
 });
 
 export const WindroseConfigSchema = z.object({

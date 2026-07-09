@@ -219,6 +219,8 @@ export interface TemperatureGaugeConfig {
   isOutside: boolean;
   /** Unit for display and colour-scale calculations. */
   unit: "celsius" | "fahrenheit";
+  /** HA entity ID for this location's humidity sensor, e.g. "sensor.living_room_humidity". Null = no humidity data for this gauge. */
+  humidityEntityId: string | null;
   /**
    * Radius of the radial gradient heat spread as a fraction of the floorplan width.
    * Only used for indoor gauges. Default 0.25.

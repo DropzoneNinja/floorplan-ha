@@ -6,7 +6,7 @@ import { type ImageFitBounds, FULL_BOUNDS } from "./useImageFitBounds.ts";
 import { useHeatmapStore } from "../store/heatmap.ts";
 import { useEntityStateStore } from "../store/entity-states.ts";
 import { api } from "../api/client.ts";
-import { tempToColor, TEMP_STOPS } from "./renderers/TemperatureGaugeHotspot.tsx";
+import { tempToColor, TEMP_STOPS, humidityToColor, HUMIDITY_STOPS } from "./renderers/TemperatureGaugeHotspot.tsx";
 
 interface HeatmapLayerProps {
   hotspots: HotspotRaw[];
@@ -30,6 +30,7 @@ const CANVAS_H = 1080;
 export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS }: HeatmapLayerProps) {
   const isVisible = useHeatmapStore((s) => s.isVisible);
   const triggeredByZIndex = useHeatmapStore((s) => s.triggeredByZIndex);
+  const metric = useHeatmapStore((s) => s.metric);
   const hide = useHeatmapStore((s) => s.hide);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const maskCanvasRef = useRef<OffscreenCanvas | null>(null);
@@ -37,10 +38,14 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
 
   const tempGauges = hotspots.filter((h) => h.type === "temperature_gauge");
 
-  // Subscribe to temperature gauge entity states.
+  // Subscribe to temperature gauge entity states (both the temperature and,
+  // if configured, humidity entity for each gauge).
   // useShallow does a key-by-key comparison so the component only re-renders
-  // when an actual gauge temperature changes, not on every SSE update.
-  const gaugeEntityIds = tempGauges.map((h) => h.entityId).filter(Boolean) as string[];
+  // when an actual gauge reading changes, not on every SSE update.
+  const gaugeEntityIds = tempGauges.flatMap((h) => {
+    const cfg = h.configJson as TemperatureGaugeConfig;
+    return [h.entityId, cfg.humidityEntityId].filter(Boolean) as string[];
+  });
   const entityStates = useEntityStateStore(
     useShallow((s): Record<string, EntityState | undefined> =>
       Object.fromEntries(gaugeEntityIds.map((id) => [id, s.getState(id)])),
@@ -98,7 +103,7 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
     drawHeatmap(tempGauges, entityStates);
   // entityStates is a new object each render when states change, so this fires correctly.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isVisible, entityStates]);
+  }, [isVisible, entityStates, metric]);
 
   function clearCanvas() {
     const canvas = canvasRef.current;
@@ -124,14 +129,18 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
     const indoorGauges = gauges.filter((h) => !(h.configJson as TemperatureGaugeConfig).isOutside);
     const outsideGauge = gauges.find((h) => (h.configJson as TemperatureGaugeConfig).isOutside);
 
-    const outsideTempC = resolveGaugeTempC(outsideGauge, states);
+    const resolveValue = metric === "humidity" ? resolveGaugeHumidity : resolveGaugeTempC;
+    const toColor = metric === "humidity" ? humidityToColor : tempToColor;
+    const toRgb = metric === "humidity" ? humidityToRgb : tempToRgb;
+
+    const outsideValue = resolveValue(outsideGauge, states);
 
     // ── Outdoor layer ────────────────────────────────────────────────────────
-    if (outsideTempC !== null) {
+    if (outsideValue !== null) {
       const outdoorCanvas = new OffscreenCanvas(CANVAS_W, CANVAS_H);
       const oCtx = outdoorCanvas.getContext("2d")!;
 
-      oCtx.fillStyle = tempToColor(outsideTempC, 0.65);
+      oCtx.fillStyle = toColor(outsideValue, 0.65);
       oCtx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
       if (mask) {
@@ -149,16 +158,16 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
     // earlier ones via source-over.  Computed at 1/8 resolution and scaled up —
     // heatmaps are smooth low-frequency signals so the bilinear upsample is fine.
     if (indoorGauges.length > 0) {
-      const gaugesWithTemp = indoorGauges
+      const gaugesWithValue = indoorGauges
         .map((g) => {
-          const tempC = resolveGaugeTempC(g, states);
-          if (tempC === null) return null;
+          const value = resolveValue(g, states);
+          if (value === null) return null;
           const config = g.configJson as TemperatureGaugeConfig;
-          return { x: g.x, y: g.y, radius: config.radius, tempC };
+          return { x: g.x, y: g.y, radius: config.radius, value };
         })
-        .filter(Boolean) as Array<{ x: number; y: number; radius: number; tempC: number }>;
+        .filter(Boolean) as Array<{ x: number; y: number; radius: number; value: number }>;
 
-      if (gaugesWithTemp.length > 0) {
+      if (gaugesWithValue.length > 0) {
         const IDW_W = 240;
         const IDW_H = 135;
         const imgData = new ImageData(IDW_W, IDW_H);
@@ -171,10 +180,10 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
             const fullX = (px + 0.5) / IDW_W * CANVAS_W;
             const fullY = (py + 0.5) / IDW_H * CANVAS_H;
 
-            let weightedTemp = 0;
+            let weightedValue = 0;
             let totalWeight = 0;
 
-            for (const g of gaugesWithTemp) {
+            for (const g of gaugesWithValue) {
               const dx = fullX - g.x * CANVAS_W;
               const dy = fullY - g.y * CANVAS_H;
               const dist = Math.sqrt(dx * dx + dy * dy);
@@ -188,15 +197,15 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
                 ? 0.85 - 0.40 * (t / 0.6)
                 : 0.45 * (1 - (t - 0.6) / 0.4);
 
-              weightedTemp += alpha * g.tempC;
+              weightedValue += alpha * g.value;
               totalWeight += alpha;
             }
 
             const idx = (py * IDW_W + px) * 4;
             if (totalWeight > 0.01) {
-              const blendedTemp = weightedTemp / totalWeight;
+              const blendedValue = weightedValue / totalWeight;
               const finalAlpha = Math.min(0.85, totalWeight);
-              const [cr, cg, cb] = tempToRgb(blendedTemp);
+              const [cr, cg, cb] = toRgb(blendedValue);
               d[idx]     = cr;
               d[idx + 1] = cg;
               d[idx + 2] = cb;
@@ -255,7 +264,7 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
           height={CANVAS_H}
           style={{ width: "100%", height: "100%", opacity: 0.8 }}
         />
-        <HeatmapLegend />
+        <HeatmapLegend metric={metric} />
       </div>
     </div>
   );
@@ -263,9 +272,12 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
 
 // ─── Legend ──────────────────────────────────────────────────────────────────
 
-function HeatmapLegend() {
-  // Build a vertical CSS gradient from cold → hot
-  const gradientStops = TEMP_STOPS.map(
+function HeatmapLegend({ metric }: { metric: "temperature" | "humidity" }) {
+  const stops = metric === "humidity" ? HUMIDITY_STOPS : TEMP_STOPS;
+  const unitSuffix = metric === "humidity" ? "%" : "°C";
+
+  // Build a vertical CSS gradient from cold/dry → hot/humid
+  const gradientStops = stops.map(
     (s) => `rgba(${s.r},${s.g},${s.b},0.9)`,
   ).join(", ");
 
@@ -305,20 +317,23 @@ function HeatmapLegend() {
           justifyContent: "space-between",
         }}
       >
-        {TEMP_STOPS.map((s) => (
-          <span
-            key={s.temp}
-            style={{
-              color: `rgba(${s.r},${s.g},${s.b},1)`,
-              fontSize: "16px",
-              fontWeight: 600,
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {s.temp}°C
-          </span>
-        ))}
+        {stops.map((s) => {
+          const value = "temp" in s ? s.temp : s.humidity;
+          return (
+            <span
+              key={value}
+              style={{
+                color: `rgba(${s.r},${s.g},${s.b},1)`,
+                fontSize: "16px",
+                fontWeight: 600,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {value}{unitSuffix}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -357,4 +372,38 @@ function resolveGaugeTempC(
   if (isNaN(raw)) return null;
   const config = gauge.configJson as TemperatureGaugeConfig;
   return config.unit === "fahrenheit" ? (raw - 32) * (5 / 9) : raw;
+}
+
+function humidityToRgb(humidity: number): [number, number, number] {
+  const first = HUMIDITY_STOPS[0]!;
+  const last = HUMIDITY_STOPS[HUMIDITY_STOPS.length - 1]!;
+  if (humidity <= first.humidity) return [first.r, first.g, first.b];
+  if (humidity >= last.humidity) return [last.r, last.g, last.b];
+  for (let i = 0; i < HUMIDITY_STOPS.length - 1; i++) {
+    const lo = HUMIDITY_STOPS[i]!;
+    const hi = HUMIDITY_STOPS[i + 1]!;
+    if (humidity >= lo.humidity && humidity <= hi.humidity) {
+      const t = (humidity - lo.humidity) / (hi.humidity - lo.humidity);
+      return [
+        Math.round(lo.r + t * (hi.r - lo.r)),
+        Math.round(lo.g + t * (hi.g - lo.g)),
+        Math.round(lo.b + t * (hi.b - lo.b)),
+      ];
+    }
+  }
+  return [128, 128, 128];
+}
+
+function resolveGaugeHumidity(
+  gauge: HotspotRaw | undefined,
+  states: Record<string, EntityState | undefined>,
+): number | null {
+  const config = gauge?.configJson as TemperatureGaugeConfig | undefined;
+  const humidityEntityId = config?.humidityEntityId;
+  if (!humidityEntityId) return null;
+  const entityState = states[humidityEntityId];
+  if (!entityState) return null;
+  const raw = parseFloat(entityState.state);
+  if (isNaN(raw)) return null;
+  return Math.min(100, Math.max(0, raw));
 }

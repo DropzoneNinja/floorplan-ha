@@ -127,6 +127,8 @@ export function ConfigPanel({ hotspot }: ConfigPanelProps) {
             hotspotType={hotspot.type}
             entityId={entityId ?? null}
             onChange={(id) => updateDraft(hotspot.id, { entityId: id })}
+            config={configJson}
+            onConfigChange={(config) => updateDraft(hotspot.id, { configJson: config })}
           />
         )}
 
@@ -444,10 +446,14 @@ function EntityTab({
   hotspotType,
   entityId,
   onChange,
+  config,
+  onConfigChange,
 }: {
   hotspotType: string;
   entityId: string | null;
   onChange: (id: string | null) => void;
+  config: HotspotRaw["configJson"];
+  onConfigChange: (c: HotspotRaw["configJson"]) => void;
 }) {
   if (hotspotType === "clock") {
     return (
@@ -468,6 +474,30 @@ function EntityTab({
       <p className="text-[11px] text-gray-500">
         Rain rate entities are configured in the Config tab. The primary entity (daily rain rate) drives the raindrop fill level.
       </p>
+    );
+  }
+  if (hotspotType === "temperature_gauge") {
+    const c = config as TemperatureGaugeConfig;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] text-gray-500">
+            Bind this hotspot to a Home Assistant entity for live state updates.
+          </p>
+          <EntityPicker value={entityId} onChange={onChange} label="Home Assistant entity" />
+        </div>
+        <Field label="Humidity sensor entity (optional)">
+          <EntityPicker
+            value={c.humidityEntityId ?? null}
+            onChange={(id) => onConfigChange({ ...c, humidityEntityId: id })}
+          />
+          <p className="mt-1 text-[11px] text-gray-500">
+            Select a HA sensor that reports this location&apos;s humidity (e.g.{" "}
+            <code className="rounded bg-white/10 px-1 text-white">sensor.living_room_humidity</code>).
+            Used when the floorplan is switched to humidity display.
+          </p>
+        </Field>
+      </div>
     );
   }
   return (
