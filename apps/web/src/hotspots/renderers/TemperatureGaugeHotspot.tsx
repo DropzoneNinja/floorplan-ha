@@ -163,7 +163,9 @@ function TempHistoryModal({ entityId, name, metric, unit, currentValue, onClose 
             </svg>
             <div>
               <span className="text-4xl font-semibold text-white">{name}</span>
-              <span className="block text-xl text-white/50">Last 24 hours</span>
+              <span className="block text-xl text-white/50">
+                {isHumidity ? "Humidity" : "Temperature"} · Last 24 hours
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-4">
