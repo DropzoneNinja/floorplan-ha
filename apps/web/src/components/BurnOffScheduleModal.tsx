@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import type { BurnOffConfig } from "@floorplan-ha/shared";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -61,7 +62,7 @@ export function BurnOffScheduleModal({
     statusClass = "bg-gray-500/20 text-gray-400 border border-white/10";
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[99999] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
       onClick={onClose}
@@ -172,6 +173,7 @@ export function BurnOffScheduleModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
