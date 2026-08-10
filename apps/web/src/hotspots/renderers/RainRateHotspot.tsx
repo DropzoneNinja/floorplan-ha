@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
-import type { RainRateConfig } from "@floorplan-ha/shared";
+import { useShallow } from "zustand/react/shallow";
+import type { EntityState, RainRateConfig } from "@floorplan-ha/shared";
 import type { HotspotRendererProps } from "../types.ts";
 import { api } from "../../api/client.ts";
 import { useEntityStateStore } from "../../store/entity-states.ts";
@@ -482,12 +483,24 @@ interface RainRateModalProps {
 }
 
 function RainRateModal({ config, onClose }: RainRateModalProps) {
-  const getState = useEntityStateStore((s) => s.getState);
   const unit = config.unit || "mm";
+
+  const entityIds = [
+    config.hourlyRainRateEntityId,
+    config.dailyRainRateEntityId,
+    config.monthlyRainRateEntityId,
+    config.yearlyRainRateEntityId,
+  ].filter((id): id is string => !!id);
+
+  const entityStates = useEntityStateStore(
+    useShallow((s): Record<string, EntityState | undefined> =>
+      Object.fromEntries(entityIds.map((id) => [id, s.getState(id)])),
+    ),
+  );
 
   function getValue(entityId: string | null): string {
     if (!entityId) return "—";
-    const s = getState(entityId);
+    const s = entityStates[entityId];
     if (!s) return "—";
     const n = parseFloat(s.state);
     return isNaN(n) ? "—" : n.toFixed(1);
@@ -573,12 +586,13 @@ function RainRateModal({ config, onClose }: RainRateModalProps) {
 export function RainRateHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
   const [showModal, setShowModal] = useState(false);
   const config = hotspot.configJson as RainRateConfig;
-  const getState = useEntityStateStore((s) => s.getState);
 
   const dailyMaxMode = config.dailyMaxMode ?? "fixed";
   const unit = config.unit || "mm";
 
-  const dailyState = config.dailyRainRateEntityId ? getState(config.dailyRainRateEntityId) : undefined;
+  const dailyState = useEntityStateStore((s) =>
+    config.dailyRainRateEntityId ? s.getState(config.dailyRainRateEntityId) : undefined,
+  );
   const rawValue = dailyState?.state ?? "";
   const dailyValue = parseFloat(rawValue);
   const hasDailyValue = !isNaN(dailyValue);
