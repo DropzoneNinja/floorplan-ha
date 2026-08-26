@@ -234,6 +234,7 @@ not already match the current default config shape.
 | `windrose` | `WindroseHotspot.tsx` | Compass rose showing live wind direction and speed |
 | `battery` | `BatteryHotspot.tsx` | Aggregate battery health indicator; tap to show individual levels on floorplan |
 | `clock` | `ClockHotspot.tsx` | Analog or digital clock with timezone and date support |
+| `powerpoint` | `PowerpointHotspot.tsx` | Aggregate Australian double-GPO indicator; tap to show individual powerpoints on floorplan, tap one to toggle each outlet in a dialog |
 | `custom` | `CustomHotspot.tsx` | Silent placeholder in presentation mode; visible dashed outline in edit mode |
 
 ---

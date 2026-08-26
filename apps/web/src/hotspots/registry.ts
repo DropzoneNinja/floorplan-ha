@@ -1,4 +1,4 @@
-import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig, PowerpointConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -17,6 +17,7 @@ import { BatteryHotspot } from "./renderers/BatteryHotspot.tsx";
 import { ClockHotspot } from "./renderers/ClockHotspot.tsx";
 import { BurnOffHotspot } from "./renderers/BurnOffHotspot.tsx";
 import { RainRateHotspot } from "./renderers/RainRateHotspot.tsx";
+import { PowerpointHotspot } from "./renderers/PowerpointHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -285,6 +286,18 @@ registerHotspotType({
     dailyMaxMode: "fixed",
     unit: "mm",
   } satisfies RainRateConfig,
+});
+
+registerHotspotType({
+  type: "powerpoint",
+  label: "Powerpoint",
+  description: "Australian double power point — click to reveal individual sockets across the floorplan and toggle each side",
+  icon: "🔌",
+  Renderer: PowerpointHotspot,
+  defaultConfig: {
+    items: [],
+    backgroundColor: null,
+  } satisfies PowerpointConfig,
 });
 
 registerHotspotType({

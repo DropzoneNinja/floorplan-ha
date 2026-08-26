@@ -10,6 +10,7 @@ import { KioskPinOverlay } from "../components/KioskPinOverlay.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
 import { HeatmapLayer } from "../hotspots/HeatmapLayer.tsx";
 import { BatteryOverlayLayer } from "../hotspots/BatteryOverlayLayer.tsx";
+import { PowerpointOverlayLayer } from "../hotspots/PowerpointOverlayLayer.tsx";
 import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 // Side-effect: ensure built-in hotspot types are registered
 import "../hotspots/registry.ts";
@@ -195,6 +196,7 @@ function FloorplanCanvas({ floorplan }: { floorplan: FloorplanWithHotspotsRaw })
         imageBounds={imageBounds}
       />
       <BatteryOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
+      <PowerpointOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
       <HotspotLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
     </div>
   );

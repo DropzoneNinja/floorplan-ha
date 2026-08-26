@@ -21,8 +21,12 @@ export function TypePickerModal({ onSelect, onClose }: TypePickerModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-xl border border-white/10 bg-surface-raised p-5 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
+      <div
+        className="flex w-full max-w-md flex-col rounded-xl border border-white/10 bg-surface-raised shadow-2xl"
+        style={{ maxHeight: "80vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <h2 className="text-sm font-semibold text-white">Add Hotspot — Choose Type</h2>
           <button
             type="button"
@@ -34,7 +38,7 @@ export function TypePickerModal({ onSelect, onClose }: TypePickerModalProps) {
           </button>
         </div>
 
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-none p-5">
           {types.map((def) => (
             <li key={def.type}>
               <button

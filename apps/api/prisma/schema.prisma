@@ -148,6 +148,7 @@ enum HotspotType {
   clock
   burn_off
   rain_rate
+  powerpoint
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────

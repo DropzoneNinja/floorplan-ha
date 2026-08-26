@@ -63,7 +63,8 @@ export type HotspotType =
   | "battery"
   | "clock"
   | "burn_off"
-  | "rain_rate";
+  | "rain_rate"
+  | "powerpoint";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -320,6 +321,33 @@ export interface RainRateConfig {
   unit: string;
 }
 
+export interface PowerpointOutlet {
+  /** Free-text label shown in the dialog, e.g. "Lamp", "Heater" */
+  name: string;
+  /** HA switch entity ID controlling this outlet, e.g. "switch.lounge_gpo_left" */
+  entityId: string | null;
+}
+
+export interface PowerpointItem {
+  /** Stable UUID used as React key */
+  id: string;
+  /** Overall location name, e.g. "Lounge Room GPO" */
+  name: string;
+  /** Normalized 0–1 horizontal position on the floorplan */
+  x: number;
+  /** Normalized 0–1 vertical position on the floorplan */
+  y: number;
+  outletA: PowerpointOutlet;
+  outletB: PowerpointOutlet;
+}
+
+export interface PowerpointConfig {
+  /** List of powerpoint locations placed on the floorplan */
+  items: PowerpointItem[];
+  /** CSS background color, "transparent" for no background, or null for the default style. */
+  backgroundColor: string | null;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -336,6 +364,7 @@ export type HotspotConfig =
   | ClockConfig
   | RainRateConfig
   | BurnOffConfig
+  | PowerpointConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────
