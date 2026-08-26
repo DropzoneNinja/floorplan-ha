@@ -1,25 +1,28 @@
 const ON_COLOR = "#facc15"; // yellow-400 — matches the on-state color used by LightHotspot/BatteryHotspot
 const OFF_COLOR = "#6b7280"; // gray-500
+const PIN_ON_COLOR = "#111827"; // near-black — keeps the pins readable against the highlighted "on" circle
 
 /**
  * A single AS/NZS 3112 pin recess: two angled active/neutral pins forming an
- * inverted V, plus a vertical earth pin below. Purely decorative — glows
- * amber when `on`, neutral gray otherwise.
+ * inverted V, plus a vertical earth pin below. When `on`, the circle itself
+ * is highlighted amber while the pins stay near-black for contrast; when
+ * off, everything is neutral gray.
  */
 function SocketPins({ cx, cy, r, on }: { cx: number; cy: number; r: number; on: boolean }) {
-  const color = on ? ON_COLOR : OFF_COLOR;
+  const ringColor = on ? ON_COLOR : OFF_COLOR;
+  const pinColor = on ? PIN_ON_COLOR : OFF_COLOR;
   const strokeWidth = r * 0.15;
   return (
     <g>
-      <circle cx={cx} cy={cy} r={r} fill={on ? ON_COLOR : "#374151"} opacity={on ? 0.22 : 1} />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={r * 0.14} />
+      <circle cx={cx} cy={cy} r={r} fill={on ? ON_COLOR : "#374151"} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={ringColor} strokeWidth={r * 0.14} />
       {/* Earth pin — vertical, below center, clear of the two angled pins above it */}
       <line
         x1={cx}
         y1={cy + r * 0.22}
         x2={cx}
         y2={cy + r * 0.72}
-        stroke={color}
+        stroke={pinColor}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
       />
@@ -29,7 +32,7 @@ function SocketPins({ cx, cy, r, on }: { cx: number; cy: number; r: number; on: 
         y1={cy - r * 0.07}
         x2={cx - r * 0.21}
         y2={cy - r * 0.57}
-        stroke={color}
+        stroke={pinColor}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
       />
@@ -39,7 +42,7 @@ function SocketPins({ cx, cy, r, on }: { cx: number; cy: number; r: number; on: 
         y1={cy - r * 0.07}
         x2={cx + r * 0.21}
         y2={cy - r * 0.57}
-        stroke={color}
+        stroke={pinColor}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
       />

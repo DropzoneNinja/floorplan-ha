@@ -68,7 +68,7 @@ export function PowerpointHotspot({ hotspot, isEditMode }: HotspotRendererProps)
         boxShadow: isExpanded ? "0 0 10px 3px rgba(250,204,21,0.35)" : undefined,
       }}
     >
-      <AustralianSocketIcon leftOn={leftOn} rightOn={rightOn} size={22} className="shrink-0" />
+      <AustralianSocketIcon leftOn={leftOn} rightOn={rightOn} size={33} className="shrink-0" />
       {items.length > 0 && (
         <span className="text-[10px] tabular-nums text-gray-300">{items.length}</span>
       )}

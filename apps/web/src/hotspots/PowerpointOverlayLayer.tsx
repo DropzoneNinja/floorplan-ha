@@ -105,7 +105,7 @@ function PowerpointItemPin({ item, leftOn, rightOn, onOpen }: PowerpointItemPinP
       <AustralianSocketIcon
         leftOn={leftOn}
         rightOn={rightOn}
-        size={26}
+        size={39}
         className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]"
       />
       <span

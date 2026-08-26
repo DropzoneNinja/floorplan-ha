@@ -85,7 +85,7 @@ function OutletControl({ outlet }: { outlet: PowerpointOutlet }) {
       ].join(" ")}
       aria-label={`${outlet.name} — ${isOn ? "on" : "off"}, tap to toggle`}
     >
-      <AustralianSocketOutlet on={isOn} size={56} />
+      <AustralianSocketOutlet on={isOn} size={84} />
       <span className="max-w-[100px] truncate text-[15px] font-medium text-white">{outlet.name}</span>
       <span
         className={[

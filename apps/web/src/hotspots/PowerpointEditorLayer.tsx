@@ -191,7 +191,7 @@ function PowerpointItemHandle({
         }}
       >
         <AustralianSocketIcon
-          size={24}
+          size={36}
           className={isSelected ? "drop-shadow-[0_0_4px_#3b82f6]" : undefined}
         />
         <span
