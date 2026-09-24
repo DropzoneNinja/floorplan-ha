@@ -235,6 +235,7 @@ not already match the current default config shape.
 | `battery` | `BatteryHotspot.tsx` | Aggregate battery health indicator; tap to show individual levels on floorplan |
 | `clock` | `ClockHotspot.tsx` | Analog or digital clock with timezone and date support |
 | `powerpoint` | `PowerpointHotspot.tsx` | Aggregate Australian double-GPO indicator; tap to show individual powerpoints on floorplan, tap one to toggle each outlet in a dialog |
+| `music` | `MusicHotspot.tsx` | Music Assistant speaker overview; tap to show each speaker's now-playing/volume on the floorplan, tap one for full controls |
 | `custom` | `CustomHotspot.tsx` | Silent placeholder in presentation mode; visible dashed outline in edit mode |
 
 ---

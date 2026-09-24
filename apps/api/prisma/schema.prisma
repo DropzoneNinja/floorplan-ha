@@ -149,6 +149,7 @@ enum HotspotType {
   burn_off
   rain_rate
   powerpoint
+  music
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────

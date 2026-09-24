@@ -8,6 +8,11 @@ const EnvSchema = z
     SESSION_SECRET: z.string().min(32),
     HA_BASE_URL: z.string().url(),
     HA_TOKEN: z.string().min(1),
+    // Music Assistant's own server API (separate from HA) — only used to fetch the
+    // full play queue, which HA's music_assistant.get_queue service doesn't expose.
+    // Optional: the queue view falls back to current+next only when unset.
+    MA_BASE_URL: z.string().url().optional(),
+    MA_TOKEN: z.string().min(1).optional(),
     ASSET_STORAGE_PATH: z.string().default("/uploads"),
     BACKUP_STORAGE_PATH: z.string().default("/backups"),
     CORS_ORIGIN: z.string().default("http://localhost:5173"),

@@ -136,6 +136,18 @@ export const ICON_PATHS: Record<string, string> = {
   "mdi:remote":
     "M13 9h-2V7h2v2m0 2h-2v2h2v-2m4-9H7c-1.11 0-2 .89-2 2v18c0 1.11.89 2 2 2h10c1.11 0 2-.89 2-2V4c0-1.11-.89-2-2-2m0 2v4H7V4h10M7 22V10h10v12H7m4-6h-2v2h2v-2m0 4h-2v2h2v-2m4-4h-2v2h2v-2m0 4h-2v2h2v-2z",
 
+  // ── Media Transport ───────────────────────────────────────────────────────
+  "mdi:play":
+    "M8 5v14l11-7z",
+  "mdi:pause":
+    "M6 5h4v14H6zM14 5h4v14h-4z",
+  "mdi:skip-next":
+    "M6 5v14l8.5-7zM16 5h2v14h-2z",
+  "mdi:skip-previous":
+    "M6 5h2v14H6zM20 5v14l-8.5-7z",
+  "mdi:music-note":
+    "M5 16h5v4H5zM9 4h2v16H9zM11 4L18 7l-7 3z",
+
   // ── Appliances ────────────────────────────────────────────────────────────
   "mdi:washing-machine":
     "M2 2h20v20H2V2m2 2v16h16V4H4m8 1a7 7 0 0 1 7 7 7 7 0 0 1-7 7A7 7 0 0 1 5 12a7 7 0 0 1 7-7m0 2a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-2.5 1.5a2.5 2.5 0 0 1 2.5 2.5A2.5 2.5 0 0 1 9.5 13.5 2.5 2.5 0 0 1 7 11a2.5 2.5 0 0 1 2.5-2.5z",

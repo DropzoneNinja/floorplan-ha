@@ -119,6 +119,8 @@ npm run format      # Prettier formatting
 |----------|----------|---------|-------------|
 | `HA_BASE_URL` | Yes | — | Home Assistant URL (no trailing slash) |
 | `HA_TOKEN` | Yes | — | Long-lived access token (never exposed to frontend) |
+| `MA_BASE_URL` | No | — | Music Assistant server URL (no trailing slash). Enables the full scrolling play queue (up to 50 tracks) and library Browse; without it, Queue falls back to current + next track only, and Browse is unavailable |
+| `MA_TOKEN` | No | — | Long-lived access token from Music Assistant's own Settings (never exposed to frontend) |
 | `SESSION_SECRET` | Yes | — | JWT signing secret (≥32 chars) |
 | `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `ADMIN_EMAIL` | Seed only | `admin@localhost` | Initial admin account email |

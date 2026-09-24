@@ -19,6 +19,7 @@ import { floorplanRoutes } from "./routes/floorplans.js";
 import { hotspotRoutes } from "./routes/hotspots.js";
 import { assetRoutes } from "./routes/assets.js";
 import { haRoutes } from "./routes/ha.js";
+import { musicRoutes } from "./routes/music.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { backupRoutes } from "./routes/backup.js";
 import { stateStreamRoutes } from "./routes/state-stream.js";
@@ -65,6 +66,7 @@ async function buildApp() {
   await app.register(hotspotRoutes, { prefix: "/api/hotspots" });
   await app.register(assetRoutes, { prefix: "/api/assets" });
   await app.register(haRoutes, { prefix: "/api/ha" });
+  await app.register(musicRoutes, { prefix: "/api/music" });
   await app.register(settingsRoutes, { prefix: "/api/settings" });
   await app.register(backupRoutes, { prefix: "/api/backup" });
   await app.register(stateStreamRoutes, { prefix: "/api/state" });

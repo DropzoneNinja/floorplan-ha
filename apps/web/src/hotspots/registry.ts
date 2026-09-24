@@ -1,4 +1,4 @@
-import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig, PowerpointConfig } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig, PowerpointConfig, MusicConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -18,6 +18,7 @@ import { ClockHotspot } from "./renderers/ClockHotspot.tsx";
 import { BurnOffHotspot } from "./renderers/BurnOffHotspot.tsx";
 import { RainRateHotspot } from "./renderers/RainRateHotspot.tsx";
 import { PowerpointHotspot } from "./renderers/PowerpointHotspot.tsx";
+import { MusicHotspot } from "./renderers/MusicHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -298,6 +299,18 @@ registerHotspotType({
     items: [],
     backgroundColor: null,
   } satisfies PowerpointConfig,
+});
+
+registerHotspotType({
+  type: "music",
+  label: "Music Assistant",
+  description: "Speaker overview — click to reveal each speaker's now-playing and volume across the floorplan, tap one for full controls",
+  icon: "🎵",
+  Renderer: MusicHotspot,
+  defaultConfig: {
+    items: [],
+    backgroundColor: null,
+  } satisfies MusicConfig,
 });
 
 registerHotspotType({

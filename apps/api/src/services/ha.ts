@@ -170,6 +170,112 @@ class HaService {
     return this.ws.getStatisticsDuringPeriod(entityId, startTime, endTime, period, types);
   }
 
+  /**
+   * Proxy a media entity's picture (e.g. album art) through the backend.
+   * `entity_picture` is an HA-relative, self-authenticating path — the
+   * browser can never resolve it directly since it never talks to HA.
+   * Returns null if the entity has no picture right now.
+   */
+  async getMediaImage(entityId: string): Promise<{ body: Buffer; contentType: string } | null> {
+    const state = this.stateCache.get(entityId);
+    const picturePath = state?.attributes?.entity_picture;
+    if (typeof picturePath !== "string" || !picturePath) return null;
+    // Native HA integrations report entity_picture as an HA-relative, self-authenticating
+    // path (e.g. "/api/media_player_proxy/..."), but Music Assistant reports its own
+    // absolute URL on its own LAN host instead (e.g. "http://10.x.x.x:8095/imageproxy/...").
+    // Sending the latter to fetchRelativeImage would prepend HA_BASE_URL onto an already-
+    // absolute URL and silently produce a broken image — dispatch on which shape it is.
+    if (picturePath.startsWith("http://") || picturePath.startsWith("https://")) {
+      return this.rest.fetchAbsoluteImage(picturePath);
+    }
+    return this.rest.fetchRelativeImage(picturePath);
+  }
+
+  /**
+   * Proxy an arbitrary absolute image URL — used for Music Assistant's own
+   * thumbnail images (served from its own LAN host, not HA), which the
+   * browser may not be able to reach directly depending on network/deployment
+   * topology. Deliberately light validation matching this app's "trusted
+   * local network, authenticated users only" threat model (see SECURITY.md):
+   * only http(s) URLs are allowed, and the cloud metadata endpoint is
+   * blocked outright since there's no legitimate reason to ever proxy it.
+   */
+  async proxyExternalImage(url: string): Promise<{ body: Buffer; contentType: string } | null> {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return null;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (parsed.hostname === "169.254.169.254") return null;
+    return this.rest.fetchAbsoluteImage(url);
+  }
+
+  private musicAssistantConfigEntryId: string | null = null;
+
+  private async getMusicAssistantConfigEntryId(): Promise<string | null> {
+    if (this.musicAssistantConfigEntryId) return this.musicAssistantConfigEntryId;
+    const entries = await this.rest.getConfigEntries("music_assistant");
+    this.musicAssistantConfigEntryId = entries[0]?.entry_id ?? null;
+    return this.musicAssistantConfigEntryId;
+  }
+
+  /** Browse a media_player's media source tree (Music Assistant library, playlists, etc). */
+  async browseMedia(entityId: string, mediaContentType?: string, mediaContentId?: string): Promise<unknown> {
+    const response = await this.rest.callServiceWithResponse<Record<string, unknown>>(
+      "media_player",
+      "browse_media",
+      {
+        ...(mediaContentType !== undefined ? { media_content_type: mediaContentType } : {}),
+        ...(mediaContentId !== undefined ? { media_content_id: mediaContentId } : {}),
+      },
+      { entity_id: entityId },
+    );
+    const node = response[entityId] as { children?: Array<{ media_content_type?: string }> } | undefined;
+
+    // At the root only, HA mixes Music Assistant's own categories (Artists, Albums,
+    // Tracks, Playlists, Radio stations, Podcasts, Audiobooks — media_content_type
+    // "music_assistant") in with unrelated media-source integrations also registered
+    // on this HA instance (Camera, AI generated images, etc — media_content_type
+    // "app"). Deeper levels don't have this problem (their children report other
+    // types, e.g. "music", that must not be filtered), so this only touches the root.
+    const isRoot = mediaContentType === undefined && mediaContentId === undefined;
+    if (isRoot && node?.children) {
+      node.children = node.children.filter((child) => child.media_content_type === "music_assistant");
+    }
+    return node ?? null;
+  }
+
+  /** Current + next track summary for a player's Music Assistant queue. */
+  async getQueue(entityId: string): Promise<unknown> {
+    const response = await this.rest.callServiceWithResponse<Record<string, unknown>>(
+      "music_assistant",
+      "get_queue",
+      {},
+      { entity_id: entityId },
+    );
+    return response[entityId] ?? null;
+  }
+
+  /** Search the Music Assistant library across artists/albums/tracks/playlists/radio/etc. */
+  async searchMedia(query: string): Promise<unknown> {
+    const configEntryId = await this.getMusicAssistantConfigEntryId();
+    if (!configEntryId) {
+      throw new Error("Music Assistant integration not found on this Home Assistant instance");
+    }
+    return this.rest.callServiceWithResponse("music_assistant", "search", {
+      config_entry_id: configEntryId,
+      name: query,
+      // Defaults to 5 results per category when omitted — the UI already
+      // caps display at 8 per category, so 25 gives it real results to trim
+      // from instead of silently starving categories with more matches.
+      // Flat field despite the service descriptor nesting it under
+      // "search_options" for UI grouping — confirmed live (nested = 400).
+      limit: 25,
+    });
+  }
+
   async callService(
     domain: string,
     service: string,

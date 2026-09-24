@@ -165,6 +165,25 @@ export const api = {
         body: JSON.stringify(body ?? {}),
       }),
     states: () => request<unknown[]>("/ha/states"),
+    mediaImageUrl: (entityId: string) => `${BASE}/ha/media-image/${encodeURIComponent(entityId)}`,
+    imageProxyUrl: (url: string) => `${BASE}/ha/media/image-proxy?url=${encodeURIComponent(url)}`,
+    browseMedia: (entityId: string, mediaContentType?: string, mediaContentId?: string) => {
+      const qs = new URLSearchParams({ entityId });
+      if (mediaContentType !== undefined) qs.set("mediaContentType", mediaContentType);
+      if (mediaContentId !== undefined) qs.set("mediaContentId", mediaContentId);
+      return request<BrowseMediaNode>(`/ha/media/browse?${qs.toString()}`);
+    },
+    getQueue: (entityId: string) => request<MusicQueueSummary | null>(`/ha/media/queue/${encodeURIComponent(entityId)}`),
+    moveQueueItem: (entityId: string, queueItemId: string, posShift: number) =>
+      request<void>(`/ha/media/queue/${encodeURIComponent(entityId)}/items/${encodeURIComponent(queueItemId)}/move`, {
+        method: "POST",
+        body: JSON.stringify({ posShift }),
+      }),
+    removeQueueItem: (entityId: string, queueItemId: string) =>
+      request<void>(`/ha/media/queue/${encodeURIComponent(entityId)}/items/${encodeURIComponent(queueItemId)}`, {
+        method: "DELETE",
+      }),
+    searchMedia: (query: string) => request<MusicSearchResults>(`/ha/media/search?q=${encodeURIComponent(query)}`),
     config: () => request<{ latitude: number; longitude: number }>("/ha/config"),
     previewState: (state: string, rules: unknown[]) =>
       request<{ matchedRuleIndex: number | null; result: unknown | null }>("/ha/preview-state", {
@@ -187,6 +206,18 @@ export const api = {
       request<{ statistics: Array<{ start: number; max: number | null; min: number | null; mean: number | null; sum: number | null; state: number | null; change: number | null }> }>(
         `/ha/statistics/${encodeURIComponent(entityId)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&period=${period}&types=${encodeURIComponent(types)}`,
       ),
+  },
+
+  // Music Assistant — talks directly to the MA server (not through HA) for
+  // library browsing; see apps/api/src/routes/music.ts for why.
+  music: {
+    library: (type: MusicLibraryMediaType, limit = 100, offset = 0) =>
+      request<MusicLibraryItem[]>(`/music/library?type=${type}&limit=${limit}&offset=${offset}`),
+    artist: (uri: string) =>
+      request<{ albums: MusicLibraryItem[]; tracks: MusicLibraryItem[] }>(`/music/artist?uri=${encodeURIComponent(uri)}`),
+    album: (uri: string) => request<MusicLibraryItem[]>(`/music/album?uri=${encodeURIComponent(uri)}`),
+    playlist: (uri: string, limit = 100, offset = 0) =>
+      request<MusicLibraryItem[]>(`/music/playlist?uri=${encodeURIComponent(uri)}&limit=${limit}&offset=${offset}`),
   },
 
   // Backup & Restore
@@ -257,6 +288,83 @@ export interface WeatherForecastResponse {
     temperature_2m_min: number[];
     precipitation_sum: number[];
   };
+}
+
+// ─── Music Assistant response types ───────────────────────────────────────────
+// Shapes confirmed by exercising the live media_player.browse_media / music_assistant.*
+// services — see MUSIC.md for the discovery notes.
+
+export interface BrowseMediaNode {
+  title: string;
+  media_class: string;
+  media_content_type: string;
+  media_content_id: string;
+  children_media_class: string | null;
+  can_play: boolean;
+  can_expand: boolean;
+  can_search: boolean;
+  thumbnail: string | null;
+  children?: BrowseMediaNode[];
+}
+
+export type MusicLibraryMediaType = "artist" | "album" | "track" | "playlist" | "radio" | "podcast" | "audiobook";
+
+/**
+ * A Music Assistant library item, as returned by music_assistant.search (and
+ * nested in queue items) or by the direct-MA /api/music/* browse endpoints.
+ * is_playable is only populated by the browse endpoints — search's HA-side
+ * flattening doesn't include it.
+ */
+export interface MusicLibraryItem {
+  media_type: string;
+  uri: string;
+  name: string;
+  image: string | null;
+  favorite: boolean;
+  is_playable?: boolean;
+  artists?: Array<{ name: string }>;
+  album?: { name: string };
+}
+
+export interface MusicSearchResults {
+  artists: MusicLibraryItem[];
+  albums: MusicLibraryItem[];
+  tracks: MusicLibraryItem[];
+  playlists: MusicLibraryItem[];
+  radio: MusicLibraryItem[];
+  audiobooks: MusicLibraryItem[];
+  podcasts: MusicLibraryItem[];
+}
+
+export interface MusicQueueItem {
+  queue_item_id: string;
+  name: string;
+  duration: number | null;
+  media_item?: {
+    name: string;
+    artists?: Array<{ name: string }>;
+    album?: { name: string };
+    image?: string | null;
+  } | null;
+}
+
+export interface MusicQueueSummary {
+  queue_id: string;
+  active: boolean;
+  name: string;
+  items: number;
+  shuffle_enabled: boolean;
+  repeat_mode: string;
+  current_index: number;
+  elapsed_time: number;
+  current_item: MusicQueueItem | null;
+  next_item: MusicQueueItem | null;
+  /**
+   * Up to 50 upcoming queue items (current track first), fetched directly from
+   * the Music Assistant server. Absent/undefined when MA_BASE_URL/MA_TOKEN
+   * aren't configured on the backend — callers fall back to current_item/next_item.
+   */
+  queue_items?: MusicQueueItem[];
 }
 
 export interface WeatherHourlyResponse {

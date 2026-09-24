@@ -13,13 +13,15 @@ interface EntityPickerProps {
   onChange: (entityId: string | null) => void;
   /** Optional label shown above the picker */
   label?: string;
+  /** Optional domain to restrict results to, e.g. "media_player" (matches "media_player.*") */
+  domain?: string;
 }
 
 /**
  * Searchable dropdown for selecting a Home Assistant entity.
  * Fetches the entity list from the backend HA proxy.
  */
-export function EntityPicker({ value, onChange, label = "Entity" }: EntityPickerProps) {
+export function EntityPicker({ value, onChange, label = "Entity", domain }: EntityPickerProps) {
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -29,15 +31,20 @@ export function EntityPicker({ value, onChange, label = "Entity" }: EntityPicker
     staleTime: 5 * 60 * 1000,
   });
 
+  const inDomain = useMemo(
+    () => (domain ? entities.filter((e) => e.entityId?.startsWith(`${domain}.`)) : entities),
+    [entities, domain],
+  );
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return entities.slice(0, 100); // limit initial render
+    if (!search.trim()) return inDomain.slice(0, 100); // limit initial render
     const q = search.toLowerCase();
-    return entities.filter(
+    return inDomain.filter(
       (e) =>
         (e.entityId?.toLowerCase() ?? "").includes(q) ||
         (e.attributes?.friendly_name ?? "").toLowerCase().includes(q),
     );
-  }, [entities, search]);
+  }, [inDomain, search]);
 
   const selected = entities.find((e) => e.entityId === value);
 
@@ -72,6 +79,7 @@ export function EntityPicker({ value, onChange, label = "Entity" }: EntityPicker
             <input
               autoFocus
               type="text"
+              autoComplete="off"
               placeholder="Search entities…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}

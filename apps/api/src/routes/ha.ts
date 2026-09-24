@@ -3,6 +3,18 @@ import { z } from "zod";
 import { HaCallServiceSchema, CreateHotspotStateRuleSchema, evaluateRules } from "@floorplan-ha/shared";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { getHaService } from "../services/ha.js";
+import { getMusicAssistantService } from "../services/music-assistant.js";
+
+const QUEUE_ITEMS_LIMIT = 50;
+
+/** Resolves a player's HA entity_id to its Music Assistant queue_id (the two
+ * are the same value — see HaService.getQueue) so queue-item mutations,
+ * which only MA's own API supports, know which queue to act on. */
+async function resolveQueueId(entityId: string): Promise<string | null> {
+  const result = await getHaService().getQueue(entityId);
+  const summary = result as { queue_id?: string } | null;
+  return summary?.queue_id ?? null;
+}
 
 export async function haRoutes(app: FastifyInstance): Promise<void> {
   /** GET /api/ha/config — Home Assistant home location (latitude, longitude) */
@@ -187,6 +199,156 @@ export async function haRoutes(app: FastifyInstance): Promise<void> {
         .filter((r) => !isNaN(parseFloat(r.state)))
         .map((r) => ({ time: r.last_changed, value: parseFloat(r.state) }));
       return reply.send({ readings });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /** GET /api/ha/media-image/:entityId — proxies a media entity's picture (e.g. album art).
+   * Required because entity_picture is an HA-relative path the browser can never resolve
+   * directly under this app's "browser never talks to HA" security model. */
+  app.get("/media-image/:entityId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId } = request.params as { entityId: string };
+    const ha = getHaService();
+    try {
+      const image = await ha.getMediaImage(entityId);
+      if (!image) {
+        return reply.status(404).send({ statusCode: 404, error: "Not Found", message: "No picture available for this entity" });
+      }
+      return reply.type(image.contentType).send(image.body);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /** GET /api/ha/media/browse?entityId=&mediaContentType=&mediaContentId= — browse a
+   * media_player's source tree (e.g. Music Assistant library). Omit mediaContentType/Id
+   * for the root node. */
+  app.get("/media/browse", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId, mediaContentType, mediaContentId } = request.query as {
+      entityId?: string;
+      mediaContentType?: string;
+      mediaContentId?: string;
+    };
+    if (!entityId) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Query param 'entityId' is required" });
+    }
+    const ha = getHaService();
+    try {
+      const result = await ha.browseMedia(entityId, mediaContentType, mediaContentId);
+      return reply.send(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /**
+   * GET /api/ha/media/queue/:entityId — a player's Music Assistant queue summary
+   * (current/next track, shuffle/repeat, etc, via HA), plus — when MA_BASE_URL/
+   * MA_TOKEN are configured — up to 50 upcoming queue items fetched directly from
+   * the Music Assistant server, since HA's get_queue service has no items list.
+   */
+  app.get("/media/queue/:entityId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId } = request.params as { entityId: string };
+    const ha = getHaService();
+    try {
+      const result = await ha.getQueue(entityId);
+      const summary = result as { queue_id?: string; current_index?: number | null } | null;
+      const mass = getMusicAssistantService();
+      if (summary?.queue_id && mass.isConfigured) {
+        try {
+          const items = await mass.getQueueItems(summary.queue_id, QUEUE_ITEMS_LIMIT, summary.current_index ?? 0);
+          (result as Record<string, unknown>).queue_items = items;
+        } catch (err) {
+          request.log.warn({ err }, "Failed to fetch full Music Assistant queue items");
+        }
+      }
+      return reply.send(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /** POST /api/ha/media/queue/:entityId/items/:queueItemId/move — reorder a queue item.
+   * Body: { posShift: number } — relative shift (positive = later, negative = earlier).
+   * MA rejects moving the currently playing item (index 0); the frontend disables that gesture there. */
+  app.post("/media/queue/:entityId/items/:queueItemId/move", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId, queueItemId } = request.params as { entityId: string; queueItemId: string };
+    const { posShift } = (request.body ?? {}) as { posShift?: number };
+    if (typeof posShift !== "number" || !Number.isInteger(posShift) || posShift === 0) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Body 'posShift' must be a non-zero integer" });
+    }
+    const mass = getMusicAssistantService();
+    if (!mass.isConfigured) {
+      return reply
+        .status(503)
+        .send({ statusCode: 503, error: "Service Unavailable", message: "Music Assistant direct access is not configured (MA_BASE_URL/MA_TOKEN)" });
+    }
+    try {
+      const queueId = await resolveQueueId(entityId);
+      if (!queueId) return reply.status(404).send({ statusCode: 404, error: "Not Found", message: "No active queue on this player" });
+      await mass.moveQueueItem(queueId, queueItemId, posShift);
+      return reply.status(204).send();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /** DELETE /api/ha/media/queue/:entityId/items/:queueItemId — remove an item from the queue. */
+  app.delete("/media/queue/:entityId/items/:queueItemId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { entityId, queueItemId } = request.params as { entityId: string; queueItemId: string };
+    const mass = getMusicAssistantService();
+    if (!mass.isConfigured) {
+      return reply
+        .status(503)
+        .send({ statusCode: 503, error: "Service Unavailable", message: "Music Assistant direct access is not configured (MA_BASE_URL/MA_TOKEN)" });
+    }
+    try {
+      const queueId = await resolveQueueId(entityId);
+      if (!queueId) return reply.status(404).send({ statusCode: 404, error: "Not Found", message: "No active queue on this player" });
+      await mass.removeQueueItem(queueId, queueItemId);
+      return reply.status(204).send();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /** GET /api/ha/media/search?q= — search the Music Assistant library */
+  app.get("/media/search", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { q } = request.query as { q?: string };
+    if (!q || !q.trim()) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Query param 'q' is required" });
+    }
+    const ha = getHaService();
+    try {
+      const result = await ha.searchMedia(q);
+      return reply.send(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /** GET /api/ha/media/image-proxy?url= — proxies an absolute image URL (e.g. Music
+   * Assistant's own thumbnail server), never HA itself. See HaService.proxyExternalImage. */
+  app.get("/media/image-proxy", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { url } = request.query as { url?: string };
+    if (!url) {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Query param 'url' is required" });
+    }
+    const ha = getHaService();
+    try {
+      const image = await ha.proxyExternalImage(url);
+      if (!image) {
+        return reply.status(404).send({ statusCode: 404, error: "Not Found", message: "Image not available" });
+      }
+      return reply.type(image.contentType).send(image.body);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });

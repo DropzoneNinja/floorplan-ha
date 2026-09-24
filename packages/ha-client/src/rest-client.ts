@@ -86,6 +86,21 @@ export class HaRestClient {
     return raw[0] ?? [];
   }
 
+  /**
+   * Fetch a binary resource from an HA-relative path (e.g. an entity's
+   * `entity_picture` attribute, which is a self-authenticating signed path
+   * like "/api/media_player_proxy/media_player.x?token=..."). Returns null
+   * if HA responds with a non-2xx status.
+   */
+  async fetchRelativeImage(relativePath: string): Promise<{ body: Buffer; contentType: string } | null> {
+    const url = `${this.baseUrl}${relativePath}`;
+    const response = await fetch(url, { headers: this.headers });
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type") ?? "image/jpeg";
+    const arrayBuffer = await response.arrayBuffer();
+    return { body: Buffer.from(arrayBuffer), contentType };
+  }
+
   /** Call a Home Assistant service. */
   async callService(
     domain: string,
@@ -102,5 +117,57 @@ export class HaRestClient {
         ...(target?.area_id !== undefined ? { area_id: target.area_id } : {}),
       }),
     });
+  }
+
+  /**
+   * Call a response-capable Home Assistant service (e.g. `media_player.browse_media`,
+   * `music_assistant.search`) and return its `service_response` payload. HA only
+   * includes response data when the request is made with `?return_response`.
+   */
+  async callServiceWithResponse<T = unknown>(
+    domain: string,
+    service: string,
+    serviceData?: Record<string, unknown>,
+    target?: { entity_id?: string; device_id?: string; area_id?: string },
+  ): Promise<T> {
+    const result = await this.request<{ changed_states: HaStateResponse[]; service_response?: T }>(
+      `/services/${domain}/${service}?return_response`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...serviceData,
+          ...(target?.entity_id !== undefined ? { entity_id: target.entity_id } : {}),
+          ...(target?.device_id !== undefined ? { device_id: target.device_id } : {}),
+          ...(target?.area_id !== undefined ? { area_id: target.area_id } : {}),
+        }),
+      },
+    );
+    return (result.service_response ?? {}) as T;
+  }
+
+  /** List HA config entries, optionally filtered to one integration domain (e.g. "music_assistant"). */
+  async getConfigEntries(domain?: string): Promise<Array<{ entry_id: string; domain: string; title: string }>> {
+    const all = await this.request<Array<{ entry_id: string; domain: string; title: string }>>(
+      "/config/config_entries/entry",
+    );
+    return domain ? all.filter((e) => e.domain === domain) : all;
+  }
+
+  /**
+   * Fetch an image from an arbitrary absolute URL (e.g. Music Assistant's own
+   * thumbnail server on the LAN) — never sends the HA bearer token, since this
+   * request may not be going to HA at all. Returns null on any non-2xx response
+   * or network failure so callers can fall back to a placeholder.
+   */
+  async fetchAbsoluteImage(url: string): Promise<{ body: Buffer; contentType: string } | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const contentType = response.headers.get("content-type") ?? "image/jpeg";
+      const arrayBuffer = await response.arrayBuffer();
+      return { body: Buffer.from(arrayBuffer), contentType };
+    } catch {
+      return null;
+    }
   }
 }

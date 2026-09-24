@@ -6,15 +6,18 @@ import { useAuthStore } from "../store/auth.ts";
 import { useEditorStore, applyDraft } from "../store/editor.ts";
 import { useBatteryPlacementStore } from "../store/battery-placement.ts";
 import { usePowerpointPlacementStore } from "../store/powerpoint-placement.ts";
+import { useMusicPlacementStore } from "../store/music-placement.ts";
 import { useToastStore } from "../store/toast.ts";
 import { api } from "../api/client.ts";
 import { EditorHotspotLayer } from "../hotspots/EditorHotspotLayer.tsx";
 import { BatteryEditorLayer } from "../hotspots/BatteryEditorLayer.tsx";
 import { PowerpointEditorLayer } from "../hotspots/PowerpointEditorLayer.tsx";
+import { MusicEditorLayer } from "../hotspots/MusicEditorLayer.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
 import { HeatmapLayer } from "../hotspots/HeatmapLayer.tsx";
 import { BatteryOverlayLayer } from "../hotspots/BatteryOverlayLayer.tsx";
 import { PowerpointOverlayLayer } from "../hotspots/PowerpointOverlayLayer.tsx";
+import { MusicOverlayLayer } from "../hotspots/MusicOverlayLayer.tsx";
 import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 import { ConfigPanel } from "../components/editor/ConfigPanel.tsx";
 import { HotspotListPanel } from "../components/editor/HotspotListPanel.tsx";
@@ -23,7 +26,7 @@ import { TypePickerModal } from "../components/editor/TypePickerModal.tsx";
 import { getAllHotspotTypes } from "../hotspots/registry.ts";
 import { useSolarImage } from "../hooks/use-solar-image.ts";
 import type { FloorplanWithHotspotsRaw, HotspotRaw, StateRuleRaw } from "../hotspots/types.ts";
-import type { HotspotType, CycleImages, BatteryConfig, PowerpointConfig } from "@floorplan-ha/shared";
+import type { HotspotType, CycleImages, BatteryConfig, PowerpointConfig, MusicConfig } from "@floorplan-ha/shared";
 
 /**
  * Admin / editor page.
@@ -659,14 +662,16 @@ function FloorplanCanvas({
 
   const battery = useBatteryPlacementStore();
   const powerpoint = usePowerpointPlacementStore();
+  const music = useMusicPlacementStore();
   const { getDraft, updateDraft } = useEditorStore();
-  const activePlacement = battery.placement ?? powerpoint.placement;
+  const activePlacement = battery.placement ?? powerpoint.placement ?? music.placement;
   const isPlacing = isEditMode && activePlacement !== null;
 
   const cancelPlacement = useCallback(() => {
     battery.cancel();
     powerpoint.cancel();
-  }, [battery, powerpoint]);
+    music.cancel();
+  }, [battery, powerpoint, music]);
 
   // Cancel placement on Escape
   useEffect(() => {
@@ -678,7 +683,7 @@ function FloorplanCanvas({
 
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      const placement = battery.placement ?? powerpoint.placement;
+      const placement = battery.placement ?? powerpoint.placement ?? music.placement;
       if (!placement || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const relX = (e.clientX - rect.left) / rect.width;
@@ -690,9 +695,9 @@ function FloorplanCanvas({
       const hotspot = floorplan.hotspots.find((h) => h.id === placement.hotspotId);
       if (!hotspot) { cancelPlacement(); return; }
       const draft = getDraft(placement.hotspotId);
-      // Battery and Powerpoint configs both store their placed items as
+      // Battery, Powerpoint, and Music configs all store their placed items as
       // { items: Array<{ id, x, y, ... }> }, so the placement math is shared.
-      const baseConfig = (draft.configJson ?? hotspot.configJson) as unknown as BatteryConfig | PowerpointConfig;
+      const baseConfig = (draft.configJson ?? hotspot.configJson) as unknown as BatteryConfig | PowerpointConfig | MusicConfig;
       const items = baseConfig.items ?? [];
 
       let updatedItems;
@@ -710,7 +715,7 @@ function FloorplanCanvas({
       updateDraft(placement.hotspotId, { configJson: { ...baseConfig, items: updatedItems } });
       cancelPlacement();
     },
-    [battery.placement, powerpoint.placement, canvasRef, imageBounds, floorplan.hotspots, getDraft, updateDraft, cancelPlacement],
+    [battery.placement, powerpoint.placement, music.placement, canvasRef, imageBounds, floorplan.hotspots, getDraft, updateDraft, cancelPlacement],
   );
 
   return (
@@ -741,7 +746,9 @@ function FloorplanCanvas({
             className="flex items-center gap-3 rounded-lg bg-amber-500/90 px-4 py-2 text-[12px] font-medium text-black shadow-lg"
             style={{ pointerEvents: "auto" }}
           >
-            <span>Click to place {battery.placement ? "battery indicator" : "powerpoint"} · Esc to cancel</span>
+            <span>
+              Click to place {battery.placement ? "battery indicator" : powerpoint.placement ? "powerpoint" : "speaker"} · Esc to cancel
+            </span>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); cancelPlacement(); }}
@@ -781,11 +788,12 @@ function FloorplanCanvas({
         />
       )}
 
-      {/* Battery / Powerpoint overlays — only in preview mode, not edit mode */}
+      {/* Battery / Powerpoint / Music overlays — only in preview mode, not edit mode */}
       {!isEditMode && (
         <>
           <BatteryOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
           <PowerpointOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
+          <MusicOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
         </>
       )}
 
@@ -804,6 +812,11 @@ function FloorplanCanvas({
             imageBounds={imageBounds}
           />
           <PowerpointEditorLayer
+            hotspots={floorplan.hotspots}
+            containerRef={canvasRef}
+            imageBounds={imageBounds}
+          />
+          <MusicEditorLayer
             hotspots={floorplan.hotspots}
             containerRef={canvasRef}
             imageBounds={imageBounds}

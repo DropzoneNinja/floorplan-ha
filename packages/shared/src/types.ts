@@ -64,7 +64,8 @@ export type HotspotType =
   | "clock"
   | "burn_off"
   | "rain_rate"
-  | "powerpoint";
+  | "powerpoint"
+  | "music";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -348,6 +349,26 @@ export interface PowerpointConfig {
   backgroundColor: string | null;
 }
 
+export interface MusicSpeaker {
+  /** Stable UUID used as React key */
+  id: string;
+  /** Room/location name, e.g. "Living Room" */
+  name: string;
+  /** Normalized 0–1 horizontal position on the floorplan */
+  x: number;
+  /** Normalized 0–1 vertical position on the floorplan */
+  y: number;
+  /** Music Assistant media_player entity for this speaker */
+  entityId: string | null;
+}
+
+export interface MusicConfig {
+  /** List of speaker locations placed on the floorplan */
+  items: MusicSpeaker[];
+  /** CSS background color, "transparent" for no background, or null for the default style. */
+  backgroundColor: string | null;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -365,6 +386,7 @@ export type HotspotConfig =
   | RainRateConfig
   | BurnOffConfig
   | PowerpointConfig
+  | MusicConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────
