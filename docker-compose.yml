@@ -51,6 +51,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       HA_BASE_URL: ${HA_BASE_URL}
       HA_TOKEN: ${HA_TOKEN}
+      MA_BASE_URL: ${MA_BASE_URL}
+      MA_TOKEN: ${MA_TOKEN}
       ASSET_STORAGE_PATH: /uploads
       BACKUP_STORAGE_PATH: /backups
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}

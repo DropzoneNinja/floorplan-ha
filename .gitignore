@@ -3,6 +3,9 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+# Local-dev-only convenience overrides (e.g. exposing postgres:5432 to the host) —
+# must never reach production, where it conflicts with other containers on the host.
+docker-compose.override.yml
 *.log
 .DS_Store
 uploads/
