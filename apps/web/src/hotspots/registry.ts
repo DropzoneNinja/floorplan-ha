@@ -1,4 +1,4 @@
-import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig, PowerpointConfig, MusicConfig } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig, PowerpointConfig, MusicConfig, PowerConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -19,6 +19,7 @@ import { BurnOffHotspot } from "./renderers/BurnOffHotspot.tsx";
 import { RainRateHotspot } from "./renderers/RainRateHotspot.tsx";
 import { PowerpointHotspot } from "./renderers/PowerpointHotspot.tsx";
 import { MusicHotspot } from "./renderers/MusicHotspot.tsx";
+import { PowerHotspot } from "./renderers/PowerHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -311,6 +312,19 @@ registerHotspotType({
     items: [],
     backgroundColor: null,
   } satisfies MusicConfig,
+});
+
+registerHotspotType({
+  type: "power",
+  label: "Power Usage",
+  description: "Total live watts from placed power sensors; click to show a heatmap of consumption across the floorplan, tap a sensor for its usage history",
+  icon: "🔋",
+  Renderer: PowerHotspot,
+  defaultConfig: {
+    items: [],
+    radius: 0.25,
+    backgroundColor: null,
+  } satisfies PowerConfig,
 });
 
 registerHotspotType({

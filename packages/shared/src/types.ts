@@ -65,7 +65,8 @@ export type HotspotType =
   | "burn_off"
   | "rain_rate"
   | "powerpoint"
-  | "music";
+  | "music"
+  | "power";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -369,6 +370,31 @@ export interface MusicConfig {
   backgroundColor: string | null;
 }
 
+export interface PowerSensor {
+  /** Stable UUID used as React key */
+  id: string;
+  /** Room/location name, e.g. "Kitchen" */
+  name: string;
+  /** HA sensor reporting current power (W or kW), or energy (kWh/Wh) for history only */
+  entityId: string;
+  /** Normalized 0–1 horizontal position on the floorplan */
+  x: number;
+  /** Normalized 0–1 vertical position on the floorplan */
+  y: number;
+}
+
+export interface PowerConfig {
+  /** Power sensors placed on the floorplan. Their watts are summed into the icon. */
+  items: PowerSensor[];
+  /**
+   * Radius of the heat gradient as a fraction of the floorplan width.
+   * Default 0.25.
+   */
+  radius: number;
+  /** CSS background color, "transparent" for no background, or null for the default style. */
+  backgroundColor: string | null;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -387,6 +413,7 @@ export type HotspotConfig =
   | BurnOffConfig
   | PowerpointConfig
   | MusicConfig
+  | PowerConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

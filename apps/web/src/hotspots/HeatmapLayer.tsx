@@ -7,6 +7,14 @@ import { useHeatmapStore } from "../store/heatmap.ts";
 import { useEntityStateStore } from "../store/entity-states.ts";
 import { api } from "../api/client.ts";
 import { tempToColor, TEMP_STOPS, humidityToColor, HUMIDITY_STOPS } from "./renderers/TemperatureGaugeHotspot.tsx";
+import {
+  CANVAS_W,
+  CANVAS_H,
+  buildAlphaMask,
+  renderIndoorLayer,
+  type ColorStop,
+  type HeatPoint,
+} from "./heatmap-render.ts";
 
 interface HeatmapLayerProps {
   hotspots: HotspotRaw[];
@@ -15,9 +23,9 @@ interface HeatmapLayerProps {
   imageBounds?: ImageFitBounds;
 }
 
-// Canvas resolution — independent of display size for consistent gradient quality.
-const CANVAS_W = 1920;
-const CANVAS_H = 1080;
+/** Legend stops, keyed by the value each colour represents. */
+const TEMP_LEGEND: ColorStop[] = TEMP_STOPS.map((s) => ({ value: s.temp, r: s.r, g: s.g, b: s.b }));
+const HUMIDITY_LEGEND: ColorStop[] = HUMIDITY_STOPS.map((s) => ({ value: s.humidity, r: s.r, g: s.g, b: s.b }));
 
 /**
  * Canvas overlay that renders a temperature heatmap when the user clicks a
@@ -65,27 +73,7 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      // Convert the black-and-white mask image into a proper alpha mask.
-      // White pixels (interior) become opaque; black/dark pixels (exterior)
-      // become transparent.  This lets us use canvas destination-in /
-      // destination-out compositing regardless of whether the source PNG
-      // already has an alpha channel.
-      const offscreen = new OffscreenCanvas(CANVAS_W, CANVAS_H);
-      const mCtx = offscreen.getContext("2d")!;
-      mCtx.drawImage(img, 0, 0, CANVAS_W, CANVAS_H);
-      const imageData = mCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
-      const d = imageData.data;
-      for (let i = 0; i < d.length; i += 4) {
-        // Perceived luminance as alpha; set RGB to white so the mask itself
-        // is invisible when drawn (only the alpha matters for compositing).
-        const luma = Math.round(d[i]! * 0.299 + d[i + 1]! * 0.587 + d[i + 2]! * 0.114);
-        d[i] = 255;
-        d[i + 1] = 255;
-        d[i + 2] = 255;
-        d[i + 3] = luma;
-      }
-      mCtx.putImageData(imageData, 0, 0);
-      maskCanvasRef.current = offscreen;
+      maskCanvasRef.current = buildAlphaMask(img);
       maskAssetIdRef.current = maskAssetId;
       if (isVisible) drawHeatmap(tempGauges, entityStates);
     };
@@ -153,85 +141,15 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
     }
 
     // ── Indoor layer ─────────────────────────────────────────────────────────
-    // IDW-blended indoor layer: each gauge dominates near its own origin and
-    // blends smoothly toward neighbours, instead of later gauges overwriting
-    // earlier ones via source-over.  Computed at 1/8 resolution and scaled up —
-    // heatmaps are smooth low-frequency signals so the bilinear upsample is fine.
     if (indoorGauges.length > 0) {
-      const gaugesWithValue = indoorGauges
-        .map((g) => {
-          const value = resolveValue(g, states);
-          if (value === null) return null;
-          const config = g.configJson as TemperatureGaugeConfig;
-          return { x: g.x, y: g.y, radius: config.radius, value };
-        })
-        .filter(Boolean) as Array<{ x: number; y: number; radius: number; value: number }>;
-
-      if (gaugesWithValue.length > 0) {
-        const IDW_W = 240;
-        const IDW_H = 135;
-        const imgData = new ImageData(IDW_W, IDW_H);
-        const d = imgData.data;
-
-        for (let py = 0; py < IDW_H; py++) {
-          for (let px = 0; px < IDW_W; px++) {
-            // Map IDW pixel → full-canvas pixel space so radius (fraction of CANVAS_W)
-            // is in the same units as the distance calculation.
-            const fullX = (px + 0.5) / IDW_W * CANVAS_W;
-            const fullY = (py + 0.5) / IDW_H * CANVAS_H;
-
-            let weightedValue = 0;
-            let totalWeight = 0;
-
-            for (const g of gaugesWithValue) {
-              const dx = fullX - g.x * CANVAS_W;
-              const dy = fullY - g.y * CANVAS_H;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              const radius = g.radius * CANVAS_W;
-              const t = dist / radius;
-              if (t >= 1) continue;
-
-              // Mirror the original gradient stops (0.85 → 0.45 → 0) so the
-              // falloff shape is identical to the previous radial-gradient approach.
-              const alpha = t <= 0.6
-                ? 0.85 - 0.40 * (t / 0.6)
-                : 0.45 * (1 - (t - 0.6) / 0.4);
-
-              weightedValue += alpha * g.value;
-              totalWeight += alpha;
-            }
-
-            const idx = (py * IDW_W + px) * 4;
-            if (totalWeight > 0.01) {
-              const blendedValue = weightedValue / totalWeight;
-              const finalAlpha = Math.min(0.85, totalWeight);
-              const [cr, cg, cb] = toRgb(blendedValue);
-              d[idx]     = cr;
-              d[idx + 1] = cg;
-              d[idx + 2] = cb;
-              d[idx + 3] = Math.round(finalAlpha * 255);
-            }
-          }
-        }
-
-        const smallCanvas = new OffscreenCanvas(IDW_W, IDW_H);
-        const smallCtx = smallCanvas.getContext("2d")!;
-        smallCtx.putImageData(imgData, 0, 0);
-
-        const indoorCanvas = new OffscreenCanvas(CANVAS_W, CANVAS_H);
-        const iCtx = indoorCanvas.getContext("2d")!;
-        iCtx.imageSmoothingEnabled = true;
-        iCtx.imageSmoothingQuality = "high";
-        iCtx.drawImage(smallCanvas, 0, 0, CANVAS_W, CANVAS_H);
-
-        // Clip the indoor layer to the house interior using the mask.
-        if (mask) {
-          iCtx.globalCompositeOperation = "destination-in";
-          iCtx.drawImage(mask, 0, 0, CANVAS_W, CANVAS_H);
-        }
-
-        ctx.drawImage(indoorCanvas, 0, 0);
+      const points: HeatPoint[] = [];
+      for (const g of indoorGauges) {
+        const value = resolveValue(g, states);
+        if (value === null) continue;
+        points.push({ x: g.x, y: g.y, radius: (g.configJson as TemperatureGaugeConfig).radius, value });
       }
+      const indoorCanvas = renderIndoorLayer(points, toRgb, mask);
+      if (indoorCanvas) ctx.drawImage(indoorCanvas, 0, 0);
     }
   }
 
@@ -264,7 +182,10 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
           height={CANVAS_H}
           style={{ width: "100%", height: "100%", opacity: 0.8 }}
         />
-        <HeatmapLegend metric={metric} />
+        <HeatmapLegend
+          stops={metric === "humidity" ? HUMIDITY_LEGEND : TEMP_LEGEND}
+          unitSuffix={metric === "humidity" ? "%" : "°C"}
+        />
       </div>
     </div>
   );
@@ -272,10 +193,8 @@ export function HeatmapLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS 
 
 // ─── Legend ──────────────────────────────────────────────────────────────────
 
-function HeatmapLegend({ metric }: { metric: "temperature" | "humidity" }) {
-  const stops = metric === "humidity" ? HUMIDITY_STOPS : TEMP_STOPS;
-  const unitSuffix = metric === "humidity" ? "%" : "°C";
-
+/** Vertical colour-scale legend anchored to the bottom-right of the heatmap. */
+export function HeatmapLegend({ stops, unitSuffix }: { stops: readonly ColorStop[]; unitSuffix: string }) {
   // Build a vertical CSS gradient from cold/dry → hot/humid
   const gradientStops = stops.map(
     (s) => `rgba(${s.r},${s.g},${s.b},0.9)`,
@@ -309,7 +228,7 @@ function HeatmapLegend({ metric }: { metric: "temperature" | "humidity" }) {
           flexShrink: 0,
         }}
       />
-      {/* Temperature labels — one per stop, evenly spaced */}
+      {/* Labels — one per stop, evenly spaced */}
       <div
         style={{
           display: "flex",
@@ -317,23 +236,20 @@ function HeatmapLegend({ metric }: { metric: "temperature" | "humidity" }) {
           justifyContent: "space-between",
         }}
       >
-        {stops.map((s) => {
-          const value = "temp" in s ? s.temp : s.humidity;
-          return (
-            <span
-              key={value}
-              style={{
-                color: `rgba(${s.r},${s.g},${s.b},1)`,
-                fontSize: "16px",
-                fontWeight: 600,
-                lineHeight: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {value}{unitSuffix}
-            </span>
-          );
-        })}
+        {stops.map((s) => (
+          <span
+            key={s.value}
+            style={{
+              color: `rgba(${s.r},${s.g},${s.b},1)`,
+              fontSize: "16px",
+              fontWeight: 600,
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {s.value}{unitSuffix}
+          </span>
+        ))}
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ import type {
   RainRateConfig,
   PowerpointConfig,
   PowerpointOutlet,
+  PowerConfig,
   MusicConfig,
   ServiceCall,
   RuleResult,
@@ -25,6 +26,7 @@ import type {
 import { useBatteryPlacementStore } from "../../store/battery-placement.ts";
 import { usePowerpointPlacementStore } from "../../store/powerpoint-placement.ts";
 import { useMusicPlacementStore } from "../../store/music-placement.ts";
+import { usePowerPlacementStore } from "../../store/power-placement.ts";
 import { evaluateRules } from "@floorplan-ha/shared";
 import type { HotspotRaw, StateRuleRaw } from "../../hotspots/types.ts";
 import { useEditorStore, type HotspotDraft } from "../../store/editor.ts";
@@ -481,6 +483,13 @@ function EntityTab({
       </p>
     );
   }
+  if (hotspotType === "power") {
+    return (
+      <p className="text-[11px] text-gray-500">
+        Power sensors are added and placed in the Actions tab. The hotspot itself is not bound to an entity.
+      </p>
+    );
+  }
   if (hotspotType === "temperature_gauge") {
     const c = config as TemperatureGaugeConfig;
     return (
@@ -682,6 +691,179 @@ function BatteryActionsTab({
           className="rounded-lg border border-dashed border-white/20 py-2 text-[11px] text-gray-500 hover:border-white/40 hover:text-gray-300"
         >
           + Add battery location
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Power Actions Tab ─────────────────────────────────────────────────────────
+
+function PowerActionsTab({
+  hotspotId,
+  config,
+  onChange,
+}: {
+  hotspotId: string;
+  config: HotspotRaw["configJson"];
+  onChange: (c: HotspotRaw["configJson"]) => void;
+}) {
+  const c = config as unknown as PowerConfig;
+  const items = c.items ?? [];
+  const [addingItem, setAddingItem] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemEntityId, setNewItemEntityId] = useState<string | null>(null);
+
+  const { placement, startPlacement, startReposition, cancel } = usePowerPlacementStore();
+  const isPlacingForThis = placement?.hotspotId === hotspotId;
+
+  function addAtCenter() {
+    if (!newItemEntityId) return;
+    onChange({
+      ...c,
+      items: [
+        ...items,
+        { id: crypto.randomUUID(), name: newItemName || newItemEntityId, entityId: newItemEntityId, x: 0.5, y: 0.5 },
+      ],
+    });
+    resetForm();
+  }
+
+  function placeOnCanvas() {
+    if (!newItemEntityId) return;
+    startPlacement(hotspotId, {
+      id: crypto.randomUUID(),
+      name: newItemName || newItemEntityId,
+      entityId: newItemEntityId,
+    });
+    resetForm();
+  }
+
+  function resetForm() {
+    setAddingItem(false);
+    setNewItemName("");
+    setNewItemEntityId(null);
+  }
+
+  function removeItem(id: string) {
+    onChange({ ...c, items: items.filter((it) => it.id !== id) });
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Placement mode banner */}
+      {isPlacingForThis && (
+        <div className="flex items-center justify-between rounded-lg bg-amber-500/15 px-3 py-2 text-[11px] text-amber-300">
+          <span>Click on the floorplan to place · Esc to cancel</span>
+          <button type="button" onClick={cancel} className="ml-2 shrink-0 hover:text-white">
+            ✕
+          </button>
+        </div>
+      )}
+
+      <p className="text-[11px] text-gray-500">
+        Add a power sensor for each room and click it onto the floorplan. Each sensor&apos;s watts feed the icon total and the heatmap.
+      </p>
+
+      {items.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {items.map((item) => {
+            const isMoving = placement?.hotspotId === hotspotId && placement.repositioningItemId === item.id;
+            return (
+              <div
+                key={item.id}
+                className={[
+                  "flex flex-col gap-1 rounded-lg p-2.5 transition-colors",
+                  isMoving ? "border border-amber-500/40 bg-amber-500/10" : "bg-white/5",
+                ].join(" ")}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="min-w-0 truncate text-[11px] font-medium text-gray-300">{item.name}</span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      title="Move on canvas"
+                      onClick={() => isMoving ? cancel() : startReposition(hotspotId, item.id)}
+                      className={[
+                        "text-[11px] transition-colors",
+                        isMoving ? "text-amber-400 hover:text-amber-300" : "text-gray-500 hover:text-gray-300",
+                      ].join(" ")}
+                    >
+                      {isMoving ? "Cancel" : "Move"}
+                    </button>
+                    <span className="text-gray-700">·</span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      className="text-[11px] text-gray-500 hover:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                <span className="text-[10px] text-gray-500">{item.entityId}</span>
+                <span className="text-[10px] text-gray-600">
+                  {Math.round(item.x * 100)}% × {Math.round(item.y * 100)}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {addingItem ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3">
+          <p className="text-[11px] font-medium text-gray-300">New power sensor</p>
+          <Field label="Display name">
+            <input
+              type="text"
+              value={newItemName}
+              placeholder="e.g. Kitchen"
+              onChange={(e) => setNewItemName(e.target.value)}
+              className="input-field"
+            />
+          </Field>
+          <Field label="Power sensor">
+            <EntityPicker
+              value={newItemEntityId}
+              label="Select power sensor (W or kW)"
+              onChange={(id) => setNewItemEntityId(id)}
+            />
+          </Field>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={placeOnCanvas}
+              disabled={!newItemEntityId}
+              className="flex-1 rounded-lg bg-accent/80 py-1.5 text-[11px] font-medium text-white hover:bg-accent disabled:opacity-40"
+            >
+              Place on canvas
+            </button>
+            <button
+              type="button"
+              onClick={addAtCenter}
+              disabled={!newItemEntityId}
+              className="rounded-lg bg-white/10 px-3 py-1.5 text-[11px] text-gray-400 hover:bg-white/20 disabled:opacity-40"
+              title="Add at center (50%, 50%)"
+            >
+              Center
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-lg bg-white/10 px-3 py-1.5 text-[11px] text-gray-400 hover:bg-white/20"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAddingItem(true)}
+          className="rounded-lg border border-dashed border-white/20 py-2 text-[11px] text-gray-500 hover:border-white/40 hover:text-gray-300"
+        >
+          + Add power sensor
         </button>
       )}
     </div>
@@ -1472,6 +1654,12 @@ function ActionsTab({
     );
   }
 
+  if (hotspotType === "power") {
+    return (
+      <PowerActionsTab hotspotId={hotspotId} config={config} onChange={onChange} />
+    );
+  }
+
   if (hotspotType === "music") {
     return (
       <MusicActionsTab hotspotId={hotspotId} config={config} onChange={onChange} />
@@ -2144,6 +2332,39 @@ function StyleTab({
             nullable
           />
         </Field>
+      </div>
+    );
+  }
+
+  if (hotspotType === "power") {
+    const c = config as unknown as PowerConfig;
+    const radiusPct = Math.round((c.radius ?? 0.25) * 100);
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label={`Heat radius — ${radiusPct}%`}>
+          <input
+            type="range"
+            min={5}
+            max={60}
+            step={1}
+            value={radiusPct}
+            onChange={(e) => onChange({ ...c, radius: Number(e.target.value) / 100 })}
+            className="w-full accent-accent"
+          />
+        </Field>
+        <p className="text-[11px] text-gray-500">
+          How far each sensor&apos;s heat gradient spreads across the floorplan. Small rooms: 10–20%. Large open areas: 25–40%.
+        </p>
+        <Field label="Background">
+          <ColorPicker
+            value={c.backgroundColor ?? null}
+            onChange={(v) => onChange({ ...c, backgroundColor: v })}
+            nullable
+          />
+        </Field>
+        <p className="text-[11px] text-gray-500">
+          Add and place power sensors in the Actions tab. The icon shows their combined watts, coloured from blue (idle) to red (2 kW and above).
+        </p>
       </div>
     );
   }

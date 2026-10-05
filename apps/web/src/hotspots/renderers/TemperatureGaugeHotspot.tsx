@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { TemperatureGaugeConfig } from "@floorplan-ha/shared";
 import type { HotspotRendererProps } from "../types.ts";
 import { useHeatmapStore } from "../../store/heatmap.ts";
+import { usePowerStore } from "../../store/power.ts";
 import { useEntityStateStore } from "../../store/entity-states.ts";
 import { api } from "../../api/client.ts";
 
@@ -439,6 +440,8 @@ export function TemperatureGaugeHotspot({ hotspot, entityState, ruleResult, isEd
     if (isVisible && activeEntityId) {
       setShowHistory(true);
     } else {
+      // The temperature heatmap replaces the power heatmap, so only one is shown at a time.
+      usePowerStore.getState().hide();
       toggle(hotspot.zIndex);
     }
   }, [isVisible, activeEntityId, hotspot.zIndex, toggle]);

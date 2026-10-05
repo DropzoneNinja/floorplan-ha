@@ -7,17 +7,20 @@ import { useEditorStore, applyDraft } from "../store/editor.ts";
 import { useBatteryPlacementStore } from "../store/battery-placement.ts";
 import { usePowerpointPlacementStore } from "../store/powerpoint-placement.ts";
 import { useMusicPlacementStore } from "../store/music-placement.ts";
+import { usePowerPlacementStore } from "../store/power-placement.ts";
 import { useToastStore } from "../store/toast.ts";
 import { api } from "../api/client.ts";
 import { EditorHotspotLayer } from "../hotspots/EditorHotspotLayer.tsx";
 import { BatteryEditorLayer } from "../hotspots/BatteryEditorLayer.tsx";
 import { PowerpointEditorLayer } from "../hotspots/PowerpointEditorLayer.tsx";
 import { MusicEditorLayer } from "../hotspots/MusicEditorLayer.tsx";
+import { PowerEditorLayer } from "../hotspots/PowerEditorLayer.tsx";
 import { HotspotLayer } from "../hotspots/HotspotLayer.tsx";
 import { HeatmapLayer } from "../hotspots/HeatmapLayer.tsx";
 import { BatteryOverlayLayer } from "../hotspots/BatteryOverlayLayer.tsx";
 import { PowerpointOverlayLayer } from "../hotspots/PowerpointOverlayLayer.tsx";
 import { MusicOverlayLayer } from "../hotspots/MusicOverlayLayer.tsx";
+import { PowerOverlayLayer } from "../hotspots/PowerOverlayLayer.tsx";
 import { useImageFitBounds } from "../hotspots/useImageFitBounds.ts";
 import { ConfigPanel } from "../components/editor/ConfigPanel.tsx";
 import { HotspotListPanel } from "../components/editor/HotspotListPanel.tsx";
@@ -26,7 +29,7 @@ import { TypePickerModal } from "../components/editor/TypePickerModal.tsx";
 import { getAllHotspotTypes } from "../hotspots/registry.ts";
 import { useSolarImage } from "../hooks/use-solar-image.ts";
 import type { FloorplanWithHotspotsRaw, HotspotRaw, StateRuleRaw } from "../hotspots/types.ts";
-import type { HotspotType, CycleImages, BatteryConfig, PowerpointConfig, MusicConfig } from "@floorplan-ha/shared";
+import type { HotspotType, CycleImages, BatteryConfig, PowerpointConfig, MusicConfig, PowerConfig } from "@floorplan-ha/shared";
 
 /**
  * Admin / editor page.
@@ -663,15 +666,17 @@ function FloorplanCanvas({
   const battery = useBatteryPlacementStore();
   const powerpoint = usePowerpointPlacementStore();
   const music = useMusicPlacementStore();
+  const power = usePowerPlacementStore();
   const { getDraft, updateDraft } = useEditorStore();
-  const activePlacement = battery.placement ?? powerpoint.placement ?? music.placement;
+  const activePlacement = battery.placement ?? powerpoint.placement ?? music.placement ?? power.placement;
   const isPlacing = isEditMode && activePlacement !== null;
 
   const cancelPlacement = useCallback(() => {
     battery.cancel();
     powerpoint.cancel();
     music.cancel();
-  }, [battery, powerpoint, music]);
+    power.cancel();
+  }, [battery, powerpoint, music, power]);
 
   // Cancel placement on Escape
   useEffect(() => {
@@ -683,7 +688,7 @@ function FloorplanCanvas({
 
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      const placement = battery.placement ?? powerpoint.placement ?? music.placement;
+      const placement = battery.placement ?? powerpoint.placement ?? music.placement ?? power.placement;
       if (!placement || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const relX = (e.clientX - rect.left) / rect.width;
@@ -695,9 +700,9 @@ function FloorplanCanvas({
       const hotspot = floorplan.hotspots.find((h) => h.id === placement.hotspotId);
       if (!hotspot) { cancelPlacement(); return; }
       const draft = getDraft(placement.hotspotId);
-      // Battery, Powerpoint, and Music configs all store their placed items as
+      // Battery, Powerpoint, Music, and Power configs all store their placed items as
       // { items: Array<{ id, x, y, ... }> }, so the placement math is shared.
-      const baseConfig = (draft.configJson ?? hotspot.configJson) as unknown as BatteryConfig | PowerpointConfig | MusicConfig;
+      const baseConfig = (draft.configJson ?? hotspot.configJson) as unknown as BatteryConfig | PowerpointConfig | MusicConfig | PowerConfig;
       const items = baseConfig.items ?? [];
 
       let updatedItems;
@@ -715,7 +720,7 @@ function FloorplanCanvas({
       updateDraft(placement.hotspotId, { configJson: { ...baseConfig, items: updatedItems } });
       cancelPlacement();
     },
-    [battery.placement, powerpoint.placement, music.placement, canvasRef, imageBounds, floorplan.hotspots, getDraft, updateDraft, cancelPlacement],
+    [battery.placement, powerpoint.placement, music.placement, power.placement, canvasRef, imageBounds, floorplan.hotspots, getDraft, updateDraft, cancelPlacement],
   );
 
   return (
@@ -747,7 +752,7 @@ function FloorplanCanvas({
             style={{ pointerEvents: "auto" }}
           >
             <span>
-              Click to place {battery.placement ? "battery indicator" : powerpoint.placement ? "powerpoint" : "speaker"} · Esc to cancel
+              Click to place {battery.placement ? "battery indicator" : powerpoint.placement ? "powerpoint" : power.placement ? "power sensor" : "speaker"} · Esc to cancel
             </span>
             <button
               type="button"
@@ -791,6 +796,7 @@ function FloorplanCanvas({
       {/* Battery / Powerpoint / Music overlays — only in preview mode, not edit mode */}
       {!isEditMode && (
         <>
+          <PowerOverlayLayer hotspots={floorplan.hotspots} maskAssetId={floorplan.heatmapMaskAssetId ?? null} imageBounds={imageBounds} />
           <BatteryOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
           <PowerpointOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
           <MusicOverlayLayer hotspots={floorplan.hotspots} imageBounds={imageBounds} />
@@ -812,6 +818,11 @@ function FloorplanCanvas({
             imageBounds={imageBounds}
           />
           <PowerpointEditorLayer
+            hotspots={floorplan.hotspots}
+            containerRef={canvasRef}
+            imageBounds={imageBounds}
+          />
+          <PowerEditorLayer
             hotspots={floorplan.hotspots}
             containerRef={canvasRef}
             imageBounds={imageBounds}

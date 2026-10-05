@@ -101,6 +101,7 @@ export const HotspotTypeSchema = z.enum([
   "rain_rate",
   "powerpoint",
   "music",
+  "power",
 ]);
 
 export const TemperatureGaugeConfigSchema = z.object({

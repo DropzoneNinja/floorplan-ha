@@ -150,6 +150,7 @@ enum HotspotType {
   rain_rate
   powerpoint
   music
+  power
 }
 
 // ─── Hotspot State Rules ──────────────────────────────────────────────────────
