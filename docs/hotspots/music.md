@@ -27,7 +27,7 @@ Each item in the list has:
 
 - The aggregate icon shows a thumbnail of whatever's playing at the first active speaker it finds; otherwise it shows a plain speaker glyph.
 - Each card on the overlay shows track/artist, play/pause, previous/next, and a volume slider — no need to open the dialog just to check what's playing or adjust volume.
-- Tapping a card opens a bigger control view with the same controls at a larger touch target, plus Browse (library/playlists/search), Move/Group, and Queue.
+- Tapping a card opens a large player (up to 80% of the screen) with album art, a seekable progress bar, shuffle/repeat, transport and volume controls, and a side panel with the Queue, Browse (library/playlists/search), and Speakers (move/group) views. The header's speaker menu switches between speakers without closing the player.
 - The Queue view shows a scrolling list of up to 50 upcoming tracks, fetched directly from the Music Assistant server (set `MA_BASE_URL`/`MA_TOKEN` — see the root `README.md`). Without those configured, it falls back to showing just the current and next track, since Home Assistant's own `music_assistant.get_queue` service doesn't expose the full queue.
 - Browse also requires `MA_BASE_URL`/`MA_TOKEN` — it talks to the Music Assistant server directly, since Home Assistant's `media_player.browse_media` silently caps every folder around 500 items with no way to page further. Root categories, playlists, and album/artist drill-down all support "Load more" for large libraries.
 - If two speakers sit close together on the floorplan, nudge their positions apart while placing them — cards don't auto-avoid each other.

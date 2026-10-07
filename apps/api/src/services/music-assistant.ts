@@ -150,6 +150,30 @@ class MusicAssistantService {
     await this.request<void>("player_queues/delete_item", { queue_id: queueId, item_id_or_index: queueItemId });
   }
 
+  /**
+   * Add a media item to Music Assistant's favorites, or remove it. Adding takes
+   * the URI directly. Removing needs the item's library id, so the item is
+   * looked up by URI first.
+   */
+  async setFavorite(uri: string, favorite: boolean): Promise<void> {
+    if (favorite) {
+      await this.request<void>("music/favorites/add_item", { item: uri });
+      return;
+    }
+    const raw = await this.request<MaRawMediaItem & { item_id: string }>("music/item_by_uri", { uri });
+    await this.request<void>("music/favorites/remove_item", { media_type: raw.media_type, library_item_id: raw.item_id });
+  }
+
+  /**
+   * Whether a media item is in Music Assistant's favorites. Reads the item's own
+   * favorite flag from MA's per-track lookup: the flag on queue items is a snapshot
+   * that can disagree with the library.
+   */
+  async isFavorite(uri: string): Promise<boolean> {
+    const raw = await this.request<MaRawMediaItem>("music/item_by_uri", { uri });
+    return raw.favorite === true;
+  }
+
   /** MA URIs are `{provider}://{media_type}/{item_id}` — e.g.
    * "library://album/266" — every drill-down command wants the provider and
    * item_id split back out. */

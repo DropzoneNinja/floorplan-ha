@@ -218,6 +218,10 @@ export const api = {
     album: (uri: string) => request<MusicLibraryItem[]>(`/music/album?uri=${encodeURIComponent(uri)}`),
     playlist: (uri: string, limit = 100, offset = 0) =>
       request<MusicLibraryItem[]>(`/music/playlist?uri=${encodeURIComponent(uri)}&limit=${limit}&offset=${offset}`),
+    isFavorite: (uri: string) =>
+      request<{ favorite: boolean }>(`/music/favorite?uri=${encodeURIComponent(uri)}`),
+    setFavorite: (uri: string, favorite: boolean) =>
+      request<{ favorite: boolean }>("/music/favorite", { method: "POST", body: JSON.stringify({ uri, favorite }) }),
   },
 
   // Backup & Restore
@@ -342,6 +346,8 @@ export interface MusicQueueItem {
   duration: number | null;
   media_item?: {
     name: string;
+    /** Music Assistant URI (e.g. "library://track/12"), used for favoriting. */
+    uri?: string;
     artists?: Array<{ name: string }>;
     album?: { name: string };
     image?: string | null;

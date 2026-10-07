@@ -1,27 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import type { MusicSpeaker } from "@floorplan-ha/shared";
+import type { MusicLibraryMediaType } from "../api/client.ts";
 import { api } from "../api/client.ts";
 import { useToastStore } from "../store/toast.ts";
-import { useEntityStateStore } from "../store/entity-states.ts";
 import { ICON_PATHS } from "./icons.ts";
-import { MusicArt } from "./MusicArt.tsx";
 import { MusicBrowseView } from "./MusicBrowseView.tsx";
-import { MusicQueueView } from "./MusicQueueView.tsx";
 import { MusicMoveView } from "./MusicMoveView.tsx";
+import { MusicNowPlaying } from "./MusicNowPlaying.tsx";
+import { MusicQueueView } from "./MusicQueueView.tsx";
 
-type DialogView = "main" | "browse" | "queue" | "move";
+type PanelTab = "queue" | "browse" | "speakers";
 
-const VIEW_TITLES: Record<Exclude<DialogView, "main">, string> = {
-  browse: "Browse library",
-  queue: "Queue",
-  move: "Move / group",
-};
+const PANEL_TABS: Array<{ id: PanelTab; label: string }> = [
+  { id: "queue", label: "Queue" },
+  { id: "browse", label: "Browse" },
+  { id: "speakers", label: "Speakers" },
+];
 
 interface MusicControlDialogProps {
   item: MusicSpeaker;
-  /** Every speaker configured on this hotspot, including `item` itself — used by the move/group view. */
+  /** Every speaker configured on this hotspot, including `item` itself — used by the speaker switcher and move/group panel. */
   allSpeakers: MusicSpeaker[];
   /** Switch straight to a different speaker's dialog (e.g. after transferring playback to it). */
   onSwitchSpeaker: (speakerId: string) => void;
@@ -29,16 +29,32 @@ interface MusicControlDialogProps {
 }
 
 /**
- * Dialog opened by tapping a speaker card on the floorplan. The main view has
- * transport/volume controls plus entry points into three sub-views: browsing
- * the Music Assistant library (with search), the play queue, and moving or
- * grouping playback with other configured speakers.
+ * Large player dialog opened by tapping a speaker card on the floorplan. Takes
+ * up to 80% of the viewport: the left column shows the now-playing card with
+ * transport, progress, and volume; the right column holds the play queue, the
+ * Music Assistant library browser, and move/group controls.
  */
-export function MusicControlDialog({ item, allSpeakers, onSwitchSpeaker, onClose }: MusicControlDialogProps) {
-  const [view, setView] = useState<DialogView>("main");
+export function MusicControlDialog({
+  item,
+  allSpeakers,
+  onSwitchSpeaker,
+  onClose,
+}: MusicControlDialogProps) {
+  const [panel, setPanel] = useState<PanelTab>("queue");
+  // Each browse request bumps `id` so MusicBrowseView remounts and opens at the requested category.
+  const [browseRequest, setBrowseRequest] = useState<{
+    id: number;
+    category: MusicLibraryMediaType | undefined;
+  }>({
+    id: 0,
+    category: undefined,
+  });
+  const [speakerMenuOpen, setSpeakerMenuOpen] = useState(false);
+  // Clearing the queue is a two-step action: the first Clear click asks for confirmation.
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
   const entityId = item.entityId ?? "";
-  const entityState = useEntityStateStore((s) => (item.entityId ? s.getState(item.entityId) : undefined));
+  const hasEntity = !!item.entityId;
 
   // Detect whether this entity is actually a Music Assistant player (vs. e.g. the
   // native Sonos/Cast entity for the same physical speaker). Music Assistant's own
@@ -56,45 +72,23 @@ export function MusicControlDialog({ item, allSpeakers, onSwitchSpeaker, onClose
   const maCheckDone = rootCheck.isSuccess || rootCheck.isError;
   const isMusicAssistantPlayer = rootCheck.data?.media_content_type === "music_assistant";
 
-  const state = entityState?.state ?? "unavailable";
-  const isPlaying = state === "playing";
-  const title = typeof entityState?.attributes?.media_title === "string" ? entityState.attributes.media_title : null;
-  const artist = typeof entityState?.attributes?.media_artist === "string" ? entityState.attributes.media_artist : null;
-  const albumName =
-    typeof entityState?.attributes?.media_album_name === "string" ? entityState.attributes.media_album_name : null;
-  const entityPicture = entityState?.attributes?.entity_picture;
-  const artUrl =
-    item.entityId && typeof entityPicture === "string" && entityPicture ? api.ha.mediaImageUrl(item.entityId) : null;
+  const otherSpeakers = allSpeakers.filter((s) => s.id !== item.id);
 
-  const haVolume =
-    typeof entityState?.attributes?.volume_level === "number"
-      ? Math.round(entityState.attributes.volume_level * 100)
-      : 0;
-  const [localVolume, setLocalVolume] = useState(haVolume);
-  const isDraggingVolume = useRef(false);
-  const [isPending, setIsPending] = useState(false);
-
-  useEffect(() => {
-    if (!isDraggingVolume.current) setLocalVolume(haVolume);
-  }, [haVolume]);
-
-  const call = async (service: string, serviceData?: Record<string, unknown>) => {
-    if (!entityId || isPending) return;
-    setIsPending(true);
-    try {
-      await api.ha.callService("media_player", service, { serviceData, target: { entityId } });
-    } catch (err) {
-      addToast(
-        `${item.name} control failed: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error",
-      );
-    } finally {
-      setIsPending(false);
-    }
+  const openBrowse = (category?: MusicLibraryMediaType) => {
+    setBrowseRequest((r) => ({ id: r.id + 1, category }));
+    setPanel("browse");
   };
 
-  const otherSpeakers = allSpeakers.filter((s) => s.id !== item.id);
-  const hasEntity = !!item.entityId;
+  const clearQueue = async () => {
+    try {
+      await api.ha.callService("media_player", "clear_playlist", { target: { entityId } });
+    } catch (err) {
+      addToast(
+        `Couldn't clear queue: ${err instanceof Error ? err.message : "Unknown error"}`,
+        "error",
+      );
+    }
+  };
 
   const modal = (
     <div
@@ -109,180 +103,186 @@ export function MusicControlDialog({ item, allSpeakers, onSwitchSpeaker, onClose
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      {/* 80% of the viewport on desktop; on phones it's a full-width bottom sheet at the same height. */}
       <div
-        className="w-full max-w-sm rounded-t-2xl border border-white/10 bg-surface-raised pb-6 shadow-2xl sm:rounded-2xl"
+        className="flex h-[80vh] w-full flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-surface-raised shadow-2xl sm:w-[80vw] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <div className="flex min-w-0 items-center gap-2">
-            {view !== "main" && (
+        <header className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <svg viewBox="0 0 24 24" className="h-7 w-7 shrink-0 text-accent" aria-hidden="true">
+              <path d={ICON_PATHS["mdi:music-note"]} fill="currentColor" />
+            </svg>
+            <h2 className="hidden truncate text-xl font-semibold text-white sm:block">Music Assistant</h2>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => setView("main")}
-                aria-label="Back"
-                className="shrink-0 rounded-full px-1 text-[22px] leading-none text-gray-400 hover:text-white"
+                aria-haspopup="listbox"
+                aria-expanded={speakerMenuOpen}
+                disabled={allSpeakers.length < 2}
+                onClick={() => setSpeakerMenuOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white hover:bg-white/10 disabled:opacity-60"
               >
-                ←
+                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden="true">
+                  <path d={ICON_PATHS["mdi:speaker"]} fill="currentColor" />
+                </svg>
+                <span className="max-w-[12rem] truncate">{item.name}</span>
+                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden="true">
+                  <path d={ICON_PATHS["mdi:chevron-down"]} fill="currentColor" />
+                </svg>
               </button>
-            )}
-            <div className="min-w-0">
-              <h2 className="truncate text-[21px] font-semibold text-white">
-                {view === "main" ? item.name : VIEW_TITLES[view]}
-              </h2>
-              {view === "main" && entityId && <p className="mt-0.5 truncate text-base text-gray-500">{entityId}</p>}
+              {speakerMenuOpen && (
+                <ul
+                  role="listbox"
+                  className="absolute right-0 top-full z-10 mt-2 min-w-[12rem] overflow-hidden rounded-lg border border-white/10 bg-surface-raised py-1 shadow-xl"
+                >
+                  {allSpeakers.map((speaker) => {
+                    const isCurrent = speaker.id === item.id;
+                    return (
+                      <li key={speaker.id}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={isCurrent}
+                          onClick={() => {
+                            setSpeakerMenuOpen(false);
+                            if (!isCurrent) onSwitchSpeaker(speaker.id);
+                          }}
+                          className={[
+                            "block w-full px-4 py-2 text-left text-base hover:bg-white/10",
+                            isCurrent ? "text-accent" : "text-white",
+                          ].join(" ")}
+                        >
+                          {speaker.name}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            {view === "main" && (
-              <span
-                className={[
-                  "rounded-full px-2 py-0.5 text-base font-medium capitalize",
-                  isPlaying ? "bg-green-500/20 text-green-300" : "bg-gray-500/20 text-gray-400",
-                ].join(" ")}
-              >
-                {state}
-              </span>
-            )}
             <button
               type="button"
               onClick={onClose}
-              className="text-[27px] leading-none text-gray-500 hover:text-white"
+              aria-label="Close"
+              className="rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white"
             >
-              ✕
+              <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+                <path d={ICON_PATHS["mdi:close"]} fill="currentColor" />
+              </svg>
             </button>
           </div>
-        </div>
+        </header>
 
         {maCheckDone && !isMusicAssistantPlayer && (
-          <div className="mx-5 mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] leading-snug text-amber-300">
-            <strong className="font-semibold">Not linked to Music Assistant.</strong> {entityId} is browsing its
-            own native menu instead of your Music Assistant library — Search, Queue, and Move/Group won't work
-            here. Rebind this speaker to its Music-Assistant-provided entity in the hotspot's Actions tab (it's
-            usually a differently-numbered entity with the same room name).
+          <div className="mx-6 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[13px] leading-snug text-amber-300">
+            <strong className="font-semibold">Not linked to Music Assistant.</strong> {entityId} is
+            browsing its own native menu instead of your Music Assistant library — Browse, Queue,
+            and Speakers won't work here. Rebind this speaker to its Music-Assistant-provided entity
+            in the hotspot's Actions tab (it's usually a differently-numbered entity with the same
+            room name).
           </div>
         )}
 
-        <div className="px-5 pt-5">
-          {view === "main" && (
-            <div className="flex flex-col gap-5">
-              <div className="flex items-center gap-3">
-                <MusicArt
-                  src={artUrl}
-                  sizeClass="h-16 w-16"
-                  roundedClass="rounded-lg"
-                  fallback={
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-white/10">
-                      <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
-                        <path d={ICON_PATHS["mdi:speaker"]} fill="#9ca3af" />
-                      </svg>
-                    </div>
-                  }
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-lg font-medium text-white">{title ?? "Nothing playing"}</p>
-                  {artist && <p className="truncate text-base text-gray-400">{artist}</p>}
-                  {albumName && <p className="truncate text-sm text-gray-500">{albumName}</p>}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-6">
-                <button
-                  type="button"
-                  aria-label="Previous track"
-                  disabled={isPending}
-                  onClick={() => void call("media_previous_track")}
-                  className="rounded-full p-3 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-40"
-                >
-                  <svg viewBox="0 0 24 24" className="h-6 w-6">
-                    <path d={ICON_PATHS["mdi:skip-previous"]} fill="currentColor" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                  disabled={isPending}
-                  onClick={() => void call("media_play_pause")}
-                  className="rounded-full bg-white/10 p-4 text-white hover:bg-white/20 disabled:opacity-40"
-                >
-                  <svg viewBox="0 0 24 24" className="h-7 w-7">
-                    <path d={ICON_PATHS[isPlaying ? "mdi:pause" : "mdi:play"]} fill="currentColor" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next track"
-                  disabled={isPending}
-                  onClick={() => void call("media_next_track")}
-                  className="rounded-full p-3 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-40"
-                >
-                  <svg viewBox="0 0 24 24" className="h-6 w-6">
-                    <path d={ICON_PATHS["mdi:skip-next"]} fill="currentColor" />
-                  </svg>
-                </button>
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-base font-medium text-gray-400">Volume</p>
-                  <span className="text-base tabular-nums text-gray-400">{localVolume}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={localVolume}
-                  aria-label="Volume"
-                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-accent"
-                  onPointerDown={() => {
-                    isDraggingVolume.current = true;
-                  }}
-                  onChange={(e) => setLocalVolume(Number(e.target.value))}
-                  onPointerUp={(e) => {
-                    isDraggingVolume.current = false;
-                    void call("volume_set", { volume_level: Number((e.target as HTMLInputElement).value) / 100 });
-                  }}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  disabled={!hasEntity}
-                  onClick={() => setView("browse")}
-                  className="rounded-lg bg-white/10 py-2 text-[13px] font-medium text-white hover:bg-white/20 disabled:opacity-40"
-                >
-                  Browse
-                </button>
-                <button
-                  type="button"
-                  disabled={!hasEntity}
-                  onClick={() => setView("queue")}
-                  className="rounded-lg bg-white/10 py-2 text-[13px] font-medium text-white hover:bg-white/20 disabled:opacity-40"
-                >
-                  Queue
-                </button>
-                <button
-                  type="button"
-                  disabled={!hasEntity || otherSpeakers.length === 0}
-                  onClick={() => setView("move")}
-                  className="rounded-lg bg-white/10 py-2 text-[13px] font-medium text-white hover:bg-white/20 disabled:opacity-40"
-                >
-                  Move
-                </button>
-              </div>
-            </div>
-          )}
-
-          {view === "browse" && hasEntity && <MusicBrowseView entityId={item.entityId!} onPlayed={() => setView("main")} />}
-          {view === "queue" && hasEntity && <MusicQueueView entityId={item.entityId!} />}
-          {view === "move" && (
-            <MusicMoveView
-              current={item}
-              otherSpeakers={otherSpeakers}
-              onTransferred={onSwitchSpeaker}
-              onDone={() => setView("main")}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+          <section className="p-6 lg:min-h-0 lg:w-[58%] lg:overflow-y-auto">
+            <MusicNowPlaying
+              item={item}
+              onBrowse={openBrowse}
+              onSpeakers={() => setPanel("speakers")}
             />
-          )}
+          </section>
+
+          <aside className="flex min-h-[420px] flex-col border-t border-white/10 bg-black/20 p-6 lg:min-h-0 lg:flex-1 lg:border-l lg:border-t-0">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div
+                role="tablist"
+                aria-label="Music panels"
+                className="flex gap-1 rounded-xl bg-white/5 p-1"
+              >
+                {PANEL_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={panel === tab.id}
+                    disabled={!hasEntity && tab.id !== "speakers"}
+                    onClick={() => {
+                      setPanel(tab.id);
+                      setConfirmingClear(false);
+                    }}
+                    className={[
+                      "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-40",
+                      panel === tab.id
+                        ? "bg-white/15 text-white"
+                        : "text-gray-400 hover:text-white",
+                    ].join(" ")}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              {panel === "queue" && hasEntity && confirmingClear && (
+                <div className="flex items-center gap-1 text-sm">
+                  <span className="px-2 text-gray-300">Clear queue?</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingClear(false)}
+                    className="rounded-lg px-2 py-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingClear(false);
+                      void clearQueue();
+                    }}
+                    className="rounded-lg bg-red-500/80 px-3 py-1.5 font-medium text-white hover:bg-red-500"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+              {panel === "queue" && hasEntity && !confirmingClear && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingClear(true)}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-400 hover:bg-white/10 hover:text-white"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                    <path d={ICON_PATHS["mdi:trash-can-outline"]} fill="currentColor" />
+                  </svg>
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col" role="tabpanel">
+              {panel === "queue" && hasEntity && <MusicQueueView entityId={entityId} />}
+              {panel === "browse" && hasEntity && (
+                <MusicBrowseView
+                  key={browseRequest.id}
+                  entityId={entityId}
+                  initialCategory={browseRequest.category}
+                  onPlayed={() => setPanel("queue")}
+                />
+              )}
+              {panel === "speakers" && (
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <MusicMoveView
+                    current={item}
+                    otherSpeakers={otherSpeakers}
+                    onTransferred={onSwitchSpeaker}
+                    onDone={() => setPanel("queue")}
+                  />
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
       </div>
     </div>

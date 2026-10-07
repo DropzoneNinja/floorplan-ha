@@ -29,6 +29,8 @@ type BrowsePathEntry =
 interface MusicBrowseViewProps {
   entityId: string;
   onPlayed: () => void;
+  /** Opens directly inside one root category (e.g. "playlist") instead of the top-level list. */
+  initialCategory?: MusicLibraryMediaType | undefined;
 }
 
 /**
@@ -43,8 +45,11 @@ interface MusicBrowseViewProps {
  * drilling into a specific artist/album/playlist's contents. Search stays on
  * HA's music_assistant.search service, which is already complete.
  */
-export function MusicBrowseView({ entityId, onPlayed }: MusicBrowseViewProps) {
-  const [path, setPath] = useState<BrowsePathEntry[]>([]);
+export function MusicBrowseView({ entityId, onPlayed, initialCategory }: MusicBrowseViewProps) {
+  const [path, setPath] = useState<BrowsePathEntry[]>(() => {
+    const root = ROOT_CATEGORIES.find((c) => c.mediaType === initialCategory);
+    return root ? [{ kind: "category", mediaType: root.mediaType, title: root.title }] : [];
+  });
   const [searchInput, setSearchInput] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const addToast = useToastStore((s) => s.addToast);
@@ -131,7 +136,7 @@ export function MusicBrowseView({ entityId, onPlayed }: MusicBrowseViewProps) {
   }
 
   return (
-    <div className="flex max-h-[60vh] flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <form onSubmit={submitSearch} className="flex gap-2">
         <input
           type="text"
@@ -172,7 +177,7 @@ export function MusicBrowseView({ entityId, onPlayed }: MusicBrowseViewProps) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {showingSearch ? (
           searchQuery.isLoading ? (
             <p className="py-6 text-center text-sm text-gray-500">Searching…</p>

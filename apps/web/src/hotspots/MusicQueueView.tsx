@@ -7,15 +7,27 @@ import { ICON_PATHS } from "./icons.ts";
 import { ErrorNotice, errorMessage } from "./MusicErrorNotice.tsx";
 import { MusicArt } from "./MusicArt.tsx";
 
-const LONG_PRESS_MS = 600; // matches BlindHotspot's long-press convention
-const PRE_ARM_MOVE_TOLERANCE_PX = 10; // movement before long-press fires cancels it (this is just a scroll)
-const AXIS_LOCK_PX = 8; // movement after arming needed to commit to vertical (reorder) vs horizontal (swipe)
+const AXIS_LOCK_PX = 8; // movement needed before a gesture commits to horizontal (swipe) or vertical (drag)
 const ROW_GAP_PX = 6; // matches the list's space-y-1.5
-const SWIPE_REVEAL_PX = 88;
+const SWIPE_REVEAL_PX = 88; // width of the Delete button revealed behind a row
 const SWIPE_OPEN_THRESHOLD_PX = SWIPE_REVEAL_PX / 2;
 
 interface MusicQueueViewProps {
   entityId: string;
+}
+
+/**
+ * The player's queue, polled every 5s. Shared between the queue list and the
+ * now-playing heart so both read one cache entry (and one set of updates).
+ */
+export function useMusicQueue(entityId: string) {
+  return useQuery({
+    queryKey: ["music-queue", entityId],
+    queryFn: () => api.ha.getQueue(entityId),
+    enabled: entityId !== "",
+    refetchInterval: 5000,
+    retry: false,
+  });
 }
 
 /**
@@ -25,18 +37,13 @@ interface MusicQueueViewProps {
  * only ever exposes current_item/next_item. Falls back to that current/next
  * pair when the fuller list isn't available.
  *
- * Upcoming tracks support long-press to drag-reorder (vertical) or swipe left
- * to reveal a Remove button (horizontal) — see QueueList. The currently
- * playing track (always the first item) excludes both: Music Assistant
- * itself rejects reordering it ("already played/buffered").
+ * Upcoming tracks can be swiped left to reveal a Delete button, or reordered by
+ * dragging the handle on their right up or down — see QueueList. The currently
+ * playing track (always the first item) has neither, since Music Assistant
+ * rejects reordering it.
  */
 export function MusicQueueView({ entityId }: MusicQueueViewProps) {
-  const { data: queue, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["music-queue", entityId],
-    queryFn: () => api.ha.getQueue(entityId),
-    refetchInterval: 5000,
-    retry: false,
-  });
+  const { data: queue, isLoading, isError, error, refetch } = useMusicQueue(entityId);
 
   if (isLoading) return <p className="py-6 text-center text-sm text-gray-500">Loading queue…</p>;
   if (isError) {
@@ -52,7 +59,7 @@ export function MusicQueueView({ entityId }: MusicQueueViewProps) {
   if (!queue) return <p className="py-6 text-center text-sm text-gray-500">No active queue on this player</p>;
 
   return (
-    <div className="flex max-h-[60vh] flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex items-center justify-between text-[11px] text-gray-500">
         <span>{queue.items} tracks in queue</span>
         <span>
@@ -73,17 +80,31 @@ export function MusicQueueView({ entityId }: MusicQueueViewProps) {
 
 // ─── Gesture-enabled scrolling list ──────────────────────────────────────────
 
-type DragAxis = "none" | "vertical" | "horizontal";
-
-interface DragState {
-  itemId: string;
-  sourceIndex: number;
-  targetIndex: number;
-  startX: number;
-  startY: number;
-  axis: DragAxis;
-  rowHeight: number;
-}
+/**
+ * One pointer interaction at a time. A swipe starts on a row's body and moves it
+ * sideways to reveal Delete; a drag starts on the handle and moves the row to a new
+ * position in the queue.
+ */
+type Gesture =
+  | {
+      kind: "swipe";
+      itemId: string;
+      pointerId: number;
+      startX: number;
+      startY: number;
+      startOffset: number;
+      axis: "none" | "horizontal" | "vertical";
+      offset: number;
+    }
+  | {
+      kind: "drag";
+      itemId: string;
+      pointerId: number;
+      startY: number;
+      sourceIndex: number;
+      targetIndex: number;
+      rowHeight: number;
+    };
 
 function QueueList({ entityId, queue, items }: { entityId: string; queue: MusicQueueSummary; items: MusicQueueItem[] }) {
   const queryClient = useQueryClient();
@@ -91,10 +112,8 @@ function QueueList({ entityId, queue, items }: { entityId: string; queue: MusicQ
   const currentItemId = queue.current_item?.queue_item_id;
 
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
-  const removeButtonRefs = useRef(new Map<string, HTMLButtonElement>());
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragState = useRef<DragState | null>(null);
+  const deleteButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const gestureRef = useRef<Gesture | null>(null);
   const [armedId, setArmedId] = useState<string | null>(null);
   const [openSwipeId, setOpenSwipeId] = useState<string | null>(null);
 
@@ -105,19 +124,27 @@ function QueueList({ entityId, queue, items }: { entityId: string; queue: MusicQ
     el.style.transform = transform;
   }, []);
 
+  // Fades a row's Delete button in step with how far the row has been swiped.
+  const setDeleteReveal = useCallback((id: string, progress: number, withTransition: boolean) => {
+    const btn = deleteButtonRefs.current.get(id);
+    if (!btn) return;
+    btn.style.transition = withTransition ? "opacity 150ms ease" : "none";
+    btn.style.opacity = String(Math.max(0, Math.min(1, progress)));
+  }, []);
+
+  // Snaps a row either fully open (Delete showing) or fully closed.
+  const settleSwipe = useCallback(
+    (id: string, open: boolean) => {
+      setRowTransform(id, open ? `translateX(-${SWIPE_REVEAL_PX}px)` : "translateX(0)", true);
+      setDeleteReveal(id, open ? 1 : 0, true);
+      setOpenSwipeId((prev) => (open ? id : prev === id ? null : prev));
+    },
+    [setRowTransform, setDeleteReveal],
+  );
+
   const closeOpenSwipe = useCallback(() => {
-    setOpenSwipeId((prev) => {
-      if (prev) {
-        setRowTransform(prev, "translateX(0)", true);
-        const btn = removeButtonRefs.current.get(prev);
-        if (btn) {
-          btn.style.transition = "opacity 150ms ease";
-          btn.style.opacity = "0";
-        }
-      }
-      return null;
-    });
-  }, [setRowTransform]);
+    if (openSwipeId) settleSwipe(openSwipeId, false);
+  }, [openSwipeId, settleSwipe]);
 
   const applySiblingShifts = useCallback(
     (sourceIndex: number, targetIndex: number, rowHeight: number) => {
@@ -178,182 +205,172 @@ function QueueList({ entityId, queue, items }: { entityId: string; queue: MusicQ
     [entityId, queryClient, addToast],
   );
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>, item: MusicQueueItem, index: number) => {
-      if (item.queue_item_id === currentItemId) return; // MA won't let the current track be reordered/dragged
-      if (openSwipeId) closeOpenSwipe(); // any fresh gesture starts from a clean (closed) state
+  // ── Swipe: starts on the row body and moves it sideways ──
 
-      pointerStart.current = { x: e.clientX, y: e.clientY };
-      longPressTimer.current = setTimeout(() => {
-        longPressTimer.current = null;
-        const el = rowRefs.current.get(item.queue_item_id);
-        if (!el) return;
-        setArmedId(item.queue_item_id);
-        navigator.vibrate?.(10);
-        dragState.current = {
-          itemId: item.queue_item_id,
-          sourceIndex: index,
-          targetIndex: index,
-          startX: e.clientX,
-          startY: e.clientY,
-          axis: "none",
-          rowHeight: el.getBoundingClientRect().height + ROW_GAP_PX,
-        };
-        el.setPointerCapture(e.pointerId);
-      }, LONG_PRESS_MS);
-    },
-    [currentItemId, openSwipeId, closeOpenSwipe],
-  );
+  const handleBodyPointerDown = (e: React.PointerEvent<HTMLDivElement>, item: MusicQueueItem) => {
+    if (item.queue_item_id === currentItemId) return; // the playing track can't be swiped away
+    if (openSwipeId && openSwipeId !== item.queue_item_id) closeOpenSwipe();
+    gestureRef.current = {
+      kind: "swipe",
+      itemId: item.queue_item_id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffset: openSwipeId === item.queue_item_id ? -SWIPE_REVEAL_PX : 0,
+      axis: "none",
+      offset: openSwipeId === item.queue_item_id ? -SWIPE_REVEAL_PX : 0,
+    };
+  };
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>, item: MusicQueueItem) => {
-      // Still waiting for the long-press to fire — enough movement means this is just a scroll.
-      if (longPressTimer.current) {
-        if (pointerStart.current) {
-          const dx = e.clientX - pointerStart.current.x;
-          const dy = e.clientY - pointerStart.current.y;
-          if (Math.hypot(dx, dy) > PRE_ARM_MOVE_TOLERANCE_PX) {
-            clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
-          }
-        }
-        return;
-      }
-      const ds = dragState.current;
-      if (!ds || ds.itemId !== item.queue_item_id) return;
-      e.preventDefault();
+  const handleBodyPointerMove = (e: React.PointerEvent<HTMLDivElement>, item: MusicQueueItem) => {
+    const g = gestureRef.current;
+    if (!g || g.kind !== "swipe" || g.itemId !== item.queue_item_id) return;
+    const dx = e.clientX - g.startX;
+    const dy = e.clientY - g.startY;
+    if (g.axis === "none") {
+      if (Math.abs(dx) < AXIS_LOCK_PX && Math.abs(dy) < AXIS_LOCK_PX) return;
+      g.axis = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+      // Keep receiving moves even if the finger or cursor leaves the row mid-swipe.
+      if (g.axis === "horizontal") e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    if (g.axis !== "horizontal") return; // vertical movement is left to the list to scroll
+    g.offset = Math.max(-SWIPE_REVEAL_PX, Math.min(0, g.startOffset + dx));
+    setRowTransform(g.itemId, `translateX(${g.offset}px)`, false);
+    setDeleteReveal(g.itemId, -g.offset / SWIPE_REVEAL_PX, false);
+  };
 
-      const dx = e.clientX - ds.startX;
-      const dy = e.clientY - ds.startY;
+  const handleBodyPointerEnd = (item: MusicQueueItem) => {
+    const g = gestureRef.current;
+    if (!g || g.kind !== "swipe" || g.itemId !== item.queue_item_id) return;
+    gestureRef.current = null;
+    if (g.axis === "horizontal") {
+      settleSwipe(g.itemId, g.offset < -SWIPE_OPEN_THRESHOLD_PX);
+    } else if (openSwipeId === g.itemId) {
+      settleSwipe(g.itemId, false); // a tap on an open row closes it
+    }
+  };
 
-      if (ds.axis === "none") {
-        if (Math.abs(dx) < AXIS_LOCK_PX && Math.abs(dy) < AXIS_LOCK_PX) return;
-        ds.axis = Math.abs(dy) >= Math.abs(dx) ? "vertical" : "horizontal";
-      }
+  // ── Drag: starts on the handle and moves the row up or down the queue ──
 
-      if (ds.axis === "vertical") {
-        setRowTransform(item.queue_item_id, `translateY(${dy}px) scale(1.02)`, false);
-        // z-index goes on the row's wrapper (the content div's parent), which is what
-        // actually establishes a stacking context — setting it on the content div alone
-        // left it trapped inside the wrapper's paint order, so it rendered under later rows.
-        const wrapper = rowRefs.current.get(item.queue_item_id)?.parentElement;
-        if (wrapper) wrapper.style.zIndex = "10";
-        const shift = Math.round(dy / ds.rowHeight);
-        // Index 0 is always the currently playing track — nothing can be dragged into its slot.
-        const newTarget = Math.max(1, Math.min(items.length - 1, ds.sourceIndex + shift));
-        if (newTarget !== ds.targetIndex) {
-          ds.targetIndex = newTarget;
-          applySiblingShifts(ds.sourceIndex, newTarget, ds.rowHeight);
-        }
-      } else {
-        const clamped = Math.max(-SWIPE_REVEAL_PX, Math.min(0, dx));
-        setRowTransform(item.queue_item_id, `translateX(${clamped}px)`, false);
-        const btn = removeButtonRefs.current.get(item.queue_item_id);
-        if (btn) {
-          btn.style.transition = "none";
-          btn.style.opacity = String(Math.min(1, -clamped / SWIPE_REVEAL_PX));
-        }
-      }
-    },
-    [items, applySiblingShifts, setRowTransform],
-  );
+  const handleHandlePointerDown = (e: React.PointerEvent<HTMLButtonElement>, item: MusicQueueItem, index: number) => {
+    if (item.queue_item_id === currentItemId) return;
+    const el = rowRefs.current.get(item.queue_item_id);
+    if (!el) return;
+    if (openSwipeId) closeOpenSwipe();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    navigator.vibrate?.(10);
+    gestureRef.current = {
+      kind: "drag",
+      itemId: item.queue_item_id,
+      pointerId: e.pointerId,
+      startY: e.clientY,
+      sourceIndex: index,
+      targetIndex: index,
+      rowHeight: el.getBoundingClientRect().height + ROW_GAP_PX,
+    };
+    setArmedId(item.queue_item_id);
+  };
 
-  const endGesture = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>, item: MusicQueueItem) => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-      pointerStart.current = null;
-      setArmedId(null);
+  const handleHandlePointerMove = (e: React.PointerEvent<HTMLButtonElement>, item: MusicQueueItem) => {
+    const g = gestureRef.current;
+    if (!g || g.kind !== "drag" || g.itemId !== item.queue_item_id) return;
+    const dy = e.clientY - g.startY;
+    setRowTransform(g.itemId, `translateY(${dy}px) scale(1.02)`, false);
+    // z-index goes on the row's wrapper (the content div's parent), which is what
+    // actually establishes a stacking context — setting it on the content div alone
+    // left it trapped inside the wrapper's paint order, so it rendered under later rows.
+    const wrapper = rowRefs.current.get(g.itemId)?.parentElement;
+    if (wrapper) wrapper.style.zIndex = "10";
+    const shift = Math.round(dy / g.rowHeight);
+    // Index 0 is always the currently playing track — nothing can be dragged into its slot.
+    const newTarget = Math.max(1, Math.min(items.length - 1, g.sourceIndex + shift));
+    if (newTarget !== g.targetIndex) {
+      g.targetIndex = newTarget;
+      applySiblingShifts(g.sourceIndex, newTarget, g.rowHeight);
+    }
+  };
 
-      const ds = dragState.current;
-      dragState.current = null;
-      if (!ds || ds.itemId !== item.queue_item_id) return;
-
-      const wrapper = rowRefs.current.get(item.queue_item_id)?.parentElement;
-      if (wrapper) wrapper.style.zIndex = "";
-
-      if (ds.axis === "vertical") {
-        resetAllTransforms();
-        const posShift = ds.targetIndex - ds.sourceIndex;
-        if (posShift !== 0) void commitMove(item, posShift);
-        else setRowTransform(item.queue_item_id, "translateY(0)", true);
-      } else if (ds.axis === "horizontal") {
-        const dx = e.clientX - ds.startX;
-        const btn = removeButtonRefs.current.get(item.queue_item_id);
-        const opensFullyNow = dx < -SWIPE_OPEN_THRESHOLD_PX;
-        if (btn) {
-          btn.style.transition = "opacity 150ms ease";
-          btn.style.opacity = opensFullyNow ? "1" : "0";
-        }
-        if (opensFullyNow) {
-          setRowTransform(item.queue_item_id, `translateX(-${SWIPE_REVEAL_PX}px)`, true);
-          setOpenSwipeId(item.queue_item_id);
-        } else {
-          setRowTransform(item.queue_item_id, "translateX(0)", true);
-        }
-      }
-    },
-    [resetAllTransforms, setRowTransform, commitMove],
-  );
+  const handleHandlePointerEnd = (item: MusicQueueItem) => {
+    const g = gestureRef.current;
+    if (!g || g.kind !== "drag" || g.itemId !== item.queue_item_id) return;
+    gestureRef.current = null;
+    setArmedId(null);
+    const wrapper = rowRefs.current.get(g.itemId)?.parentElement;
+    if (wrapper) wrapper.style.zIndex = "";
+    resetAllTransforms();
+    const posShift = g.targetIndex - g.sourceIndex;
+    if (posShift !== 0) void commitMove(item, posShift);
+  };
 
   return (
-    <div className="flex-1 space-y-1.5 overflow-y-auto">
-      {items.map((item, index) => (
-        <QueueRow
-          key={item.queue_item_id}
-          item={item}
-          highlighted={item.queue_item_id === currentItemId}
-          armed={armedId === item.queue_item_id}
-          swipeOpen={openSwipeId === item.queue_item_id}
-          onRef={(el) => {
-            if (el) rowRefs.current.set(item.queue_item_id, el);
-            else rowRefs.current.delete(item.queue_item_id);
-          }}
-          onButtonRef={(el) => {
-            if (el) removeButtonRefs.current.set(item.queue_item_id, el);
-            else removeButtonRefs.current.delete(item.queue_item_id);
-          }}
-          onRemove={() => void commitRemove(item)}
-          onPointerDown={(e) => handlePointerDown(e, item, index)}
-          onPointerMove={(e) => handlePointerMove(e, item)}
-          onPointerUp={(e) => endGesture(e, item)}
-          onPointerCancel={(e) => endGesture(e, item)}
-        />
-      ))}
+    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
+      {items.map((item, index) => {
+        const isCurrent = item.queue_item_id === currentItemId;
+        return (
+          <QueueRow
+            key={item.queue_item_id}
+            item={item}
+            isCurrent={isCurrent}
+            armed={armedId === item.queue_item_id}
+            swipeOpen={openSwipeId === item.queue_item_id}
+            onRef={(el) => {
+              if (el) rowRefs.current.set(item.queue_item_id, el);
+              else rowRefs.current.delete(item.queue_item_id);
+            }}
+            onDeleteButtonRef={(el) => {
+              if (el) deleteButtonRefs.current.set(item.queue_item_id, el);
+              else deleteButtonRefs.current.delete(item.queue_item_id);
+            }}
+            onDelete={() => {
+              setOpenSwipeId(null);
+              void commitRemove(item);
+            }}
+            onBodyPointerDown={(e) => handleBodyPointerDown(e, item)}
+            onBodyPointerMove={(e) => handleBodyPointerMove(e, item)}
+            onBodyPointerEnd={() => handleBodyPointerEnd(item)}
+            onHandlePointerDown={(e) => handleHandlePointerDown(e, item, index)}
+            onHandlePointerMove={(e) => handleHandlePointerMove(e, item)}
+            onHandlePointerEnd={() => handleHandlePointerEnd(item)}
+          />
+        );
+      })}
     </div>
   );
 }
 
 function QueueRow({
   item,
-  highlighted,
+  isCurrent,
   armed,
   swipeOpen,
   onRef,
-  onButtonRef,
-  onRemove,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
+  onDeleteButtonRef,
+  onDelete,
+  onBodyPointerDown,
+  onBodyPointerMove,
+  onBodyPointerEnd,
+  onHandlePointerDown,
+  onHandlePointerMove,
+  onHandlePointerEnd,
 }: {
   item: MusicQueueItem;
-  highlighted: boolean;
+  isCurrent: boolean;
   armed: boolean;
   swipeOpen: boolean;
   onRef: (el: HTMLDivElement | null) => void;
-  onButtonRef: (el: HTMLButtonElement | null) => void;
-  onRemove: () => void;
-  onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerCancel: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onDeleteButtonRef: (el: HTMLButtonElement | null) => void;
+  onDelete: () => void;
+  onBodyPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onBodyPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onBodyPointerEnd: () => void;
+  onHandlePointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onHandlePointerMove: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onHandlePointerEnd: () => void;
 }) {
   const artist = item.media_item?.artists?.map((a) => a.name).join(", ");
   const album = item.media_item?.album?.name;
   const artUrl = item.media_item?.image;
+  const name = item.media_item?.name ?? item.name;
 
   return (
     // No overflow-hidden here: a row being drag-reordered needs to translate well
@@ -361,10 +378,10 @@ function QueueRow({
     // and clipping it here was cutting it from view once it moved past ~1 row height.
     <div className="relative rounded-lg">
       <button
-        ref={onButtonRef}
+        ref={onDeleteButtonRef}
         type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${item.media_item?.name ?? item.name} from queue`}
+        onClick={onDelete}
+        aria-label={`Delete ${name} from queue`}
         // Visibility is explicit (opacity/pointer-events), not "whatever the content
         // above happens to cover" — the content only ever moves horizontally at rest,
         // but during a vertical drag it (and sibling rows being shifted to make room)
@@ -373,38 +390,60 @@ function QueueRow({
         style={{ opacity: swipeOpen ? 1 : 0, pointerEvents: swipeOpen ? "auto" : "none" }}
         className="absolute inset-y-0 right-0 flex w-[88px] items-center justify-center rounded-lg bg-red-500/90 text-sm font-medium text-white transition-opacity duration-150"
         tabIndex={swipeOpen ? 0 : -1}
+        aria-hidden={!swipeOpen}
       >
-        Remove
+        Delete
       </button>
       <div
         ref={onRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        style={{ touchAction: armed ? "none" : "pan-y" }}
+        style={{ touchAction: "pan-y" }}
         className={[
-          "relative flex items-center gap-3 rounded-lg p-2.5 select-none",
-          highlighted ? "bg-white/10" : "bg-surface-raised",
+          "relative flex items-center gap-2 rounded-lg p-2.5 select-none",
+          isCurrent ? "bg-white/10" : "bg-surface-raised",
           armed ? "shadow-lg" : "",
         ].join(" ")}
       >
-        <MusicArt
-          src={artUrl ? api.ha.imageProxyUrl(artUrl) : null}
-          sizeClass="h-12 w-12"
-          fallback={
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-white/10">
-              <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-                <path d={ICON_PATHS["mdi:music-note"]} fill="#9ca3af" />
-              </svg>
-            </div>
-          }
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white">{item.media_item?.name ?? item.name}</p>
-          {artist && <p className="truncate text-[12px] text-gray-400">{artist}</p>}
-          {album && <p className="truncate text-[11px] text-gray-500">{album}</p>}
+        <div
+          className="flex min-w-0 flex-1 items-center gap-3"
+          onPointerDown={onBodyPointerDown}
+          onPointerMove={onBodyPointerMove}
+          onPointerUp={onBodyPointerEnd}
+          onPointerCancel={onBodyPointerEnd}
+        >
+          <MusicArt
+            src={artUrl ? api.ha.imageProxyUrl(artUrl) : null}
+            sizeClass="h-12 w-12"
+            fallback={
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-white/10">
+                <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+                  <path d={ICON_PATHS["mdi:music-note"]} fill="#9ca3af" />
+                </svg>
+              </div>
+            }
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-white">{name}</p>
+            {artist && <p className="truncate text-[12px] text-gray-400">{artist}</p>}
+            {album && <p className="truncate text-[11px] text-gray-500">{album}</p>}
+          </div>
         </div>
+        {!isCurrent && (
+          <button
+            type="button"
+            aria-label={`Drag ${name} to reorder`}
+            // touch-action none: without it, touch-dragging the handle would scroll the list instead.
+            style={{ touchAction: "none" }}
+            onPointerDown={onHandlePointerDown}
+            onPointerMove={onHandlePointerMove}
+            onPointerUp={onHandlePointerEnd}
+            onPointerCancel={onHandlePointerEnd}
+            className="shrink-0 cursor-grab rounded p-1.5 text-gray-500 hover:bg-white/10 hover:text-white active:cursor-grabbing"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+              <path d={ICON_PATHS["mdi:drag"]} fill="currentColor" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

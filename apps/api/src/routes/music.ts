@@ -81,4 +81,37 @@ export async function musicRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
     }
   });
+
+  /** GET /api/music/favorite?uri= — whether a media item is in Music Assistant's favorites. */
+  app.get("/favorite", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { uri } = request.query as { uri?: string };
+    if (!uri) return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Query param 'uri' is required" });
+    const mass = getMusicAssistantService();
+    if (!mass.isConfigured) return reply.status(503).send(NOT_CONFIGURED);
+    try {
+      return reply.send({ favorite: await mass.isFavorite(uri) });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
+
+  /** POST /api/music/favorite { uri, favorite } — add a media item to, or remove it from, Music Assistant's favorites. */
+  app.post("/favorite", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { uri, favorite } = (request.body ?? {}) as { uri?: unknown; favorite?: unknown };
+    if (typeof uri !== "string" || uri === "" || typeof favorite !== "boolean") {
+      return reply
+        .status(400)
+        .send({ statusCode: 400, error: "Bad Request", message: "Body must include a 'uri' string and a 'favorite' boolean" });
+    }
+    const mass = getMusicAssistantService();
+    if (!mass.isConfigured) return reply.status(503).send(NOT_CONFIGURED);
+    try {
+      await mass.setFavorite(uri, favorite);
+      return reply.send({ favorite });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(502).send({ statusCode: 502, error: "Bad Gateway", message });
+    }
+  });
 }

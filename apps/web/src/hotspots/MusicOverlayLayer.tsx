@@ -9,6 +9,7 @@ import { api } from "../api/client.ts";
 import { ICON_PATHS } from "./icons.ts";
 import { MusicArt } from "./MusicArt.tsx";
 import { MusicControlDialog } from "./MusicControlDialog.tsx";
+import { sliderFillStyle } from "./slider-fill.ts";
 
 interface MusicOverlayLayerProps {
   hotspots: HotspotRaw[];
@@ -224,7 +225,8 @@ function SpeakerCard({ item, onOpen }: SpeakerCardProps) {
         max={100}
         value={volume}
         aria-label={`${item.name} volume`}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-accent"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full accent-accent"
+        style={sliderFillStyle(volume, 0, 100)}
         onClick={stop}
         onPointerDown={(e) => {
           stop(e);
