@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import type { EntityState, PowerConfig, PowerSensor } from "@floorplan-ha/shared";
+import type { EntityState, PowerConfig, PowerSensor, SolarConfig } from "@floorplan-ha/shared";
 import type { HotspotRaw } from "./types.ts";
 import { type ImageFitBounds, FULL_BOUNDS } from "./useImageFitBounds.ts";
 import { usePowerStore } from "../store/power.ts";
@@ -9,11 +9,14 @@ import { CANVAS_W, CANVAS_H, renderIndoorLayer, type HeatPoint } from "./heatmap
 import { HeatmapLegend } from "./HeatmapLayer.tsx";
 import { useHeatmapMask } from "./useHeatmapMask.ts";
 import { POWER_STOPS, fmtWatts, powerToColor, powerToRgb, readWatts } from "./power-utils.ts";
+import { IDLE_COLOR, computeHouseConsumption } from "./solar-utils.ts";
 import { PowerHistoryModal } from "./PowerHistoryModal.tsx";
 import { PowerAggregateHistoryModal } from "./PowerAggregateHistoryModal.tsx";
 
 /** Scales each sensor's configured heat radius when drawing the blooms. 0.5 = half the radius. */
 const BLOOM_RADIUS_SCALE = 0.5;
+/** Minimum watts before a house-to-sensor connector line is treated as "active" and animates. */
+const CONNECTOR_FLOW_THRESHOLD = 5;
 
 interface PowerOverlayLayerProps {
   hotspots: HotspotRaw[];
@@ -47,10 +50,22 @@ export function PowerOverlayLayer({ hotspots, maskAssetId, imageBounds = FULL_BO
   const sensors = config?.items ?? [];
   const radius = (config?.radius ?? 0.25) * BLOOM_RADIUS_SCALE;
 
+  // House box from a Solar hotspot on the same floorplan, if one is configured —
+  // draws a bus line (trunk + one vertical branch per sensor) while the heatmap is open.
+  // The trunk is coloured by the house's actual total consumption (solar + grid
+  // import − export), not by the sum of this Power hotspot's own sensors.
+  const solarHotspot = hotspots.find((h) => h.type === "solar" && (h.configJson as unknown as SolarConfig).houseBox);
+  const solarConfig = solarHotspot ? (solarHotspot.configJson as unknown as SolarConfig) : null;
+  const houseBox = solarConfig?.houseBox ?? null;
+
   const sensorEntityIds = sensors.map((s) => s.entityId);
+  const solarEntityIds = solarConfig
+    ? [...solarConfig.panels.map((p) => p.entityId), ...(solarConfig.gridBox?.entityId ? [solarConfig.gridBox.entityId] : [])]
+    : [];
+  const allEntityIds = [...sensorEntityIds, ...solarEntityIds];
   const states = useEntityStateStore(
     useShallow((s): Record<string, EntityState | undefined> =>
-      Object.fromEntries(sensorEntityIds.map((id) => [id, s.getState(id)])),
+      Object.fromEntries(allEntityIds.map((id) => [id, s.getState(id)])),
     ),
   );
 
@@ -61,6 +76,25 @@ export function PowerOverlayLayer({ hotspots, maskAssetId, imageBounds = FULL_BO
   }
   const pointsKey = points.map((p) => `${p.x},${p.y},${p.radius},${p.value}`).join("|");
   const isShown = hotspot !== undefined;
+
+  const houseResult = solarConfig ? computeHouseConsumption(solarConfig, (id) => states[id]) : null;
+  const houseConsumption = houseResult?.consumption ?? null;
+  const gridWatts = houseResult?.gridWatts ?? null;
+  const trunkColor = houseConsumption !== null ? powerToColor(houseConsumption, 0.9) : IDLE_COLOR;
+  const trunkActive = houseConsumption !== null && Math.abs(houseConsumption) >= CONNECTOR_FLOW_THRESHOLD;
+
+  // Percentage shown under each pin's watts: of the house's total incoming power
+  // (grid + solar − export) when the grid sensor has a real, non-zero reading;
+  // otherwise of this Power hotspot's own total (the number on its main icon),
+  // since "grid + solar − export" isn't meaningful without a live grid reading.
+  let powerIconTotal: number | null = null;
+  for (const p of points) powerIconTotal = (powerIconTotal ?? 0) + p.value;
+  const percentOf = gridWatts !== null && gridWatts !== 0 ? houseConsumption : powerIconTotal;
+
+  const leftXs = houseBox ? sensors.filter((s) => s.x < houseBox.x).map((s) => s.x) : [];
+  const rightXs = houseBox ? sensors.filter((s) => s.x >= houseBox.x).map((s) => s.x) : [];
+  const leftMinX = leftXs.length ? Math.min(...leftXs) : null;
+  const rightMaxX = rightXs.length ? Math.max(...rightXs) : null;
 
   // Forget the open sensor once the overlay is dismissed or leaves heatmap mode,
   // so its history doesn't reopen on the next show.
@@ -114,14 +148,68 @@ export function PowerOverlayLayer({ hotspots, maskAssetId, imageBounds = FULL_BO
               style={{ width: "100%", height: "100%", opacity: 0.8 }}
             />
 
-            {sensors.map((sensor) => (
-              <SensorPin
-                key={sensor.id}
-                sensor={sensor}
-                watts={readWatts(states[sensor.entityId])}
-                onOpen={() => setOpenSensorId(sensor.id)}
-              />
-            ))}
+            {houseBox && (
+              <svg
+                viewBox="0 0 1 1"
+                preserveAspectRatio="none"
+                className="absolute inset-0 h-full w-full overflow-visible"
+                style={{ pointerEvents: "none" }}
+              >
+                {/* Trunk — a bus line out from the house box, one segment per side that
+                    actually has a sensor on it. Coloured and animated from the house's
+                    actual total consumption, flowing outward on both segments. */}
+                {rightMaxX !== null && (
+                  <line
+                    x1={houseBox.x} y1={houseBox.y} x2={rightMaxX} y2={houseBox.y}
+                    stroke={trunkColor} strokeWidth={3} vectorEffect="non-scaling-stroke"
+                    opacity={trunkActive ? 0.9 : 0.35}
+                    className={trunkActive ? "wire-flow" : undefined}
+                  />
+                )}
+                {leftMinX !== null && (
+                  <line
+                    x1={houseBox.x} y1={houseBox.y} x2={leftMinX} y2={houseBox.y}
+                    stroke={trunkColor} strokeWidth={3} vectorEffect="non-scaling-stroke"
+                    opacity={trunkActive ? 0.9 : 0.35}
+                    className={trunkActive ? "wire-flow" : undefined}
+                  />
+                )}
+
+                {/* Branches — one vertical drop from the trunk to each sensor, animated
+                    and colour-coded on the same blue→red scale as the heatmap. */}
+                {sensors.map((sensor) => {
+                  const watts = readWatts(states[sensor.entityId]);
+                  const isActive = watts !== null && watts >= CONNECTOR_FLOW_THRESHOLD;
+                  const color = watts !== null ? powerToColor(watts, 1) : IDLE_COLOR;
+                  return (
+                    <path
+                      key={sensor.id}
+                      d={`M ${sensor.x} ${houseBox.y} L ${sensor.x} ${sensor.y}`}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={2.5}
+                      vectorEffect="non-scaling-stroke"
+                      opacity={isActive ? 0.9 : 0.35}
+                      className={isActive ? "wire-flow" : undefined}
+                    />
+                  );
+                })}
+              </svg>
+            )}
+
+            {sensors.map((sensor) => {
+              const watts = readWatts(states[sensor.entityId]);
+              const pct = watts !== null && percentOf !== null && percentOf > 0 ? (watts / percentOf) * 100 : null;
+              return (
+                <SensorPin
+                  key={sensor.id}
+                  sensor={sensor}
+                  watts={watts}
+                  pct={pct}
+                  onOpen={() => setOpenSensorId(sensor.id)}
+                />
+              );
+            })}
 
             <HeatmapLegend stops={POWER_STOPS} unitSuffix=" W" />
           </div>
@@ -149,10 +237,12 @@ export function PowerOverlayLayer({ hotspots, maskAssetId, imageBounds = FULL_BO
 interface SensorPinProps {
   sensor: PowerSensor;
   watts: number | null;
+  /** This sensor's share of the house's total incoming power, 0–100. Null if it can't be computed. */
+  pct: number | null;
   onOpen: () => void;
 }
 
-function SensorPin({ sensor, watts, onOpen }: SensorPinProps) {
+function SensorPin({ sensor, watts, pct, onOpen }: SensorPinProps) {
   const color = watts !== null ? powerToColor(watts, 1) : "#9ca3af";
   const label = watts !== null ? fmtWatts(watts) : "—";
 
@@ -184,6 +274,11 @@ function SensorPin({ sensor, watts, onOpen }: SensorPinProps) {
       <span className="mt-0.5 text-[13px] font-bold leading-none" style={{ color: "#ffffff" }}>
         {label}
       </span>
+      {pct !== null && (
+        <span className="mt-0.5 text-[15px] leading-none" style={{ color: "#9ca3af" }}>
+          {Math.round(pct)}%
+        </span>
+      )}
     </button>
   );
 }

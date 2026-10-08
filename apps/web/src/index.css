@@ -60,6 +60,18 @@ html, body {
   animation: ha-fade 2.5s ease-in-out infinite;
 }
 
+/* ── Animated wire flow (solar wires, power-to-house connectors) ────────── */
+
+@keyframes wire-flow {
+  from { stroke-dashoffset: 24; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.wire-flow {
+  stroke-dasharray: 6 6;
+  animation: wire-flow 0.6s linear infinite;
+}
+
 /* ── Hotspot list highlight ──────────────────────────────────────────────── */
 
 @keyframes hotspot-highlight-pulse {

@@ -20,6 +20,7 @@ import type {
   PowerpointOutlet,
   PowerConfig,
   MusicConfig,
+  SolarConfig,
   ServiceCall,
   RuleResult,
 } from "@floorplan-ha/shared";
@@ -27,6 +28,7 @@ import { useBatteryPlacementStore } from "../../store/battery-placement.ts";
 import { usePowerpointPlacementStore } from "../../store/powerpoint-placement.ts";
 import { useMusicPlacementStore } from "../../store/music-placement.ts";
 import { usePowerPlacementStore } from "../../store/power-placement.ts";
+import { useSolarPlacementStore } from "../../store/solar-placement.ts";
 import { evaluateRules } from "@floorplan-ha/shared";
 import type { HotspotRaw, StateRuleRaw } from "../../hotspots/types.ts";
 import { useEditorStore, type HotspotDraft } from "../../store/editor.ts";
@@ -490,6 +492,13 @@ function EntityTab({
       </p>
     );
   }
+  if (hotspotType === "solar") {
+    return (
+      <p className="text-[11px] text-gray-500">
+        Panels, the junction box, the house box, and the grid connection are added and placed in the Actions tab. The hotspot itself is not bound to an entity.
+      </p>
+    );
+  }
   if (hotspotType === "temperature_gauge") {
     const c = config as TemperatureGaugeConfig;
     return (
@@ -866,6 +875,316 @@ function PowerActionsTab({
           + Add power sensor
         </button>
       )}
+    </div>
+  );
+}
+
+// ─── Solar Actions Tab ─────────────────────────────────────────────────────────
+
+function SolarActionsTab({
+  hotspotId,
+  config,
+  onChange,
+}: {
+  hotspotId: string;
+  config: HotspotRaw["configJson"];
+  onChange: (c: HotspotRaw["configJson"]) => void;
+}) {
+  const c = config as unknown as SolarConfig;
+  const panels = c.panels ?? [];
+  const [addingPanel, setAddingPanel] = useState(false);
+  const [newPanelName, setNewPanelName] = useState("");
+  const [newPanelEntityId, setNewPanelEntityId] = useState<string | null>(null);
+
+  const { placement, startPlacePanel, startRepositionPanel, startPlaceBox, cancel } = useSolarPlacementStore();
+  const isPlacingForThis = placement?.hotspotId === hotspotId;
+
+  function withDefaults(patch: Partial<SolarConfig>): SolarConfig {
+    return {
+      panels: c.panels ?? [],
+      panelWidth: c.panelWidth ?? 0.05,
+      panelHeight: c.panelHeight ?? 0.08,
+      junctionBox: c.junctionBox ?? null,
+      houseBox: c.houseBox ?? null,
+      gridBox: c.gridBox ?? null,
+      ...patch,
+    };
+  }
+
+  function placePanelOnCanvas() {
+    if (!newPanelEntityId) return;
+    startPlacePanel(hotspotId, {
+      id: crypto.randomUUID(),
+      name: newPanelName || newPanelEntityId,
+      entityId: newPanelEntityId,
+    });
+    resetPanelForm();
+  }
+
+  function addPanelAtCenter() {
+    if (!newPanelEntityId) return;
+    onChange(withDefaults({
+      panels: [
+        ...panels,
+        { id: crypto.randomUUID(), name: newPanelName || newPanelEntityId, entityId: newPanelEntityId, x: 0.45, y: 0.45 },
+      ],
+    }));
+    resetPanelForm();
+  }
+
+  function resetPanelForm() {
+    setAddingPanel(false);
+    setNewPanelName("");
+    setNewPanelEntityId(null);
+  }
+
+  function removePanel(id: string) {
+    onChange(withDefaults({ panels: panels.filter((p) => p.id !== id) }));
+  }
+
+  function removeBox(kind: "junctionBox" | "houseBox" | "gridBox") {
+    onChange(withDefaults({ [kind]: null }));
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      {isPlacingForThis && (
+        <div className="flex items-center justify-between rounded-lg bg-amber-500/15 px-3 py-2 text-[11px] text-amber-300">
+          <span>
+            Click on the floorplan to place{" "}
+            {placement?.kind === "panel" ? "the panel" : placement?.kind === "junction" ? "the junction box" : placement?.kind === "house" ? "the house box" : "the grid box"}
+            {" "}· Esc to cancel
+          </span>
+          <button type="button" onClick={cancel} className="ml-2 shrink-0 hover:text-white">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── Panels ── */}
+      <div className="flex flex-col gap-2">
+        <p className="text-[11px] font-medium text-gray-300">Panels</p>
+        <p className="text-[11px] text-gray-500">
+          Each panel needs its own HA power sensor. Drag panels close together on the canvas and
+          they snap edge-to-edge into a grid.
+        </p>
+
+        {panels.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {panels.map((panel) => {
+              const isMoving = placement?.hotspotId === hotspotId && placement.kind === "panel" && placement.repositioningPanelId === panel.id;
+              return (
+                <div
+                  key={panel.id}
+                  className={[
+                    "flex flex-col gap-1 rounded-lg p-2.5 transition-colors",
+                    isMoving ? "border border-amber-500/40 bg-amber-500/10" : "bg-white/5",
+                  ].join(" ")}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="min-w-0 truncate text-[11px] font-medium text-gray-300">{panel.name}</span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        title="Move on canvas"
+                        onClick={() => (isMoving ? cancel() : startRepositionPanel(hotspotId, panel.id))}
+                        className={[
+                          "text-[11px] transition-colors",
+                          isMoving ? "text-amber-400 hover:text-amber-300" : "text-gray-500 hover:text-gray-300",
+                        ].join(" ")}
+                      >
+                        {isMoving ? "Cancel" : "Move"}
+                      </button>
+                      <span className="text-gray-700">·</span>
+                      <button
+                        type="button"
+                        onClick={() => removePanel(panel.id)}
+                        className="text-[11px] text-gray-500 hover:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-gray-500">{panel.entityId}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {addingPanel ? (
+          <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3">
+            <p className="text-[11px] font-medium text-gray-300">New panel</p>
+            <Field label="Display name">
+              <input
+                type="text"
+                value={newPanelName}
+                placeholder="e.g. Roof — East"
+                onChange={(e) => setNewPanelName(e.target.value)}
+                className="input-field"
+              />
+            </Field>
+            <Field label="Power sensor">
+              <EntityPicker
+                value={newPanelEntityId}
+                label="Select panel sensor (W or kW)"
+                onChange={(id) => setNewPanelEntityId(id)}
+              />
+            </Field>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={placePanelOnCanvas}
+                disabled={!newPanelEntityId}
+                className="flex-1 rounded-lg bg-accent/80 py-1.5 text-[11px] font-medium text-white hover:bg-accent disabled:opacity-40"
+              >
+                Place on canvas
+              </button>
+              <button
+                type="button"
+                onClick={addPanelAtCenter}
+                disabled={!newPanelEntityId}
+                className="rounded-lg bg-white/10 px-3 py-1.5 text-[11px] text-gray-400 hover:bg-white/20 disabled:opacity-40"
+                title="Add at center"
+              >
+                Center
+              </button>
+              <button
+                type="button"
+                onClick={resetPanelForm}
+                className="rounded-lg bg-white/10 px-3 py-1.5 text-[11px] text-gray-400 hover:bg-white/20"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAddingPanel(true)}
+            className="rounded-lg border border-dashed border-white/20 py-2 text-[11px] text-gray-500 hover:border-white/40 hover:text-gray-300"
+          >
+            + Add panel
+          </button>
+        )}
+      </div>
+
+      {/* ── Junction box ── */}
+      <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+        <p className="text-[11px] font-medium text-gray-300">Junction box</p>
+        <p className="text-[11px] text-gray-500">
+          Collects every panel&apos;s wire and shows the combined solar production.
+        </p>
+        {c.junctionBox ? (
+          <div className="flex items-center justify-between rounded-lg bg-white/5 p-2.5">
+            <span className="text-[11px] text-gray-300">
+              {Math.round(c.junctionBox.x * 100)}% × {Math.round(c.junctionBox.y * 100)}%
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => (placement?.kind === "junction" && isPlacingForThis ? cancel() : startPlaceBox(hotspotId, "junction"))}
+                className="text-[11px] text-gray-500 hover:text-gray-300"
+              >
+                {placement?.kind === "junction" && isPlacingForThis ? "Cancel" : "Move"}
+              </button>
+              <span className="text-gray-700">·</span>
+              <button type="button" onClick={() => removeBox("junctionBox")} className="text-[11px] text-gray-500 hover:text-red-400">
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => startPlaceBox(hotspotId, "junction")}
+            className="rounded-lg border border-dashed border-white/20 py-2 text-[11px] text-gray-500 hover:border-white/40 hover:text-gray-300"
+          >
+            + Place junction box
+          </button>
+        )}
+      </div>
+
+      {/* ── House box ── */}
+      <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+        <p className="text-[11px] font-medium text-gray-300">House box</p>
+        <p className="text-[11px] text-gray-500">
+          Where the solar and grid wires meet. Shows computed home consumption (solar + grid import − export) — no entity needed.
+        </p>
+        {c.houseBox ? (
+          <div className="flex items-center justify-between rounded-lg bg-white/5 p-2.5">
+            <span className="text-[11px] text-gray-300">
+              {Math.round(c.houseBox.x * 100)}% × {Math.round(c.houseBox.y * 100)}%
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => (placement?.kind === "house" && isPlacingForThis ? cancel() : startPlaceBox(hotspotId, "house"))}
+                className="text-[11px] text-gray-500 hover:text-gray-300"
+              >
+                {placement?.kind === "house" && isPlacingForThis ? "Cancel" : "Move"}
+              </button>
+              <span className="text-gray-700">·</span>
+              <button type="button" onClick={() => removeBox("houseBox")} className="text-[11px] text-gray-500 hover:text-red-400">
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => startPlaceBox(hotspotId, "house")}
+            className="rounded-lg border border-dashed border-white/20 py-2 text-[11px] text-gray-500 hover:border-white/40 hover:text-gray-300"
+          >
+            + Place house box
+          </button>
+        )}
+      </div>
+
+      {/* ── Grid box ── */}
+      <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+        <p className="text-[11px] font-medium text-gray-300">Grid connection</p>
+        <p className="text-[11px] text-gray-500">
+          A single signed sensor: positive watts = importing from the street, negative = exporting excess solar.
+        </p>
+        {c.gridBox ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between rounded-lg bg-white/5 p-2.5">
+              <span className="text-[11px] text-gray-300">
+                {Math.round(c.gridBox.x * 100)}% × {Math.round(c.gridBox.y * 100)}%
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => (placement?.kind === "grid" && isPlacingForThis ? cancel() : startPlaceBox(hotspotId, "grid"))}
+                  className="text-[11px] text-gray-500 hover:text-gray-300"
+                >
+                  {placement?.kind === "grid" && isPlacingForThis ? "Cancel" : "Move"}
+                </button>
+                <span className="text-gray-700">·</span>
+                <button type="button" onClick={() => removeBox("gridBox")} className="text-[11px] text-gray-500 hover:text-red-400">
+                  Remove
+                </button>
+              </div>
+            </div>
+            <Field label="Grid power sensor (signed, +import / −export)">
+              <EntityPicker
+                value={c.gridBox.entityId}
+                label="Select grid power sensor"
+                onChange={(id) => onChange(withDefaults({ gridBox: { ...c.gridBox!, entityId: id } }))}
+              />
+            </Field>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => startPlaceBox(hotspotId, "grid")}
+            className="rounded-lg border border-dashed border-white/20 py-2 text-[11px] text-gray-500 hover:border-white/40 hover:text-gray-300"
+          >
+            + Place grid box
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1660,6 +1979,12 @@ function ActionsTab({
     );
   }
 
+  if (hotspotType === "solar") {
+    return (
+      <SolarActionsTab hotspotId={hotspotId} config={config} onChange={onChange} />
+    );
+  }
+
   if (hotspotType === "music") {
     return (
       <MusicActionsTab hotspotId={hotspotId} config={config} onChange={onChange} />
@@ -2364,6 +2689,41 @@ function StyleTab({
         </Field>
         <p className="text-[11px] text-gray-500">
           Add and place power sensors in the Actions tab. The icon shows their combined watts, coloured from blue (idle) to red (2 kW and above).
+        </p>
+      </div>
+    );
+  }
+
+  if (hotspotType === "solar") {
+    const c = config as unknown as SolarConfig;
+    return (
+      <div className="flex flex-col gap-3">
+        <Field label={`Panel width — ${Math.round((c.panelWidth ?? 0.05) * 100)}%`}>
+          <input
+            type="range"
+            min={2}
+            max={25}
+            step={0.5}
+            value={(c.panelWidth ?? 0.05) * 100}
+            onChange={(e) => onChange({ ...c, panelWidth: Number(e.target.value) / 100 })}
+            className="w-full accent-accent"
+          />
+        </Field>
+        <Field label={`Panel height — ${Math.round((c.panelHeight ?? 0.08) * 100)}%`}>
+          <input
+            type="range"
+            min={2}
+            max={25}
+            step={0.5}
+            value={(c.panelHeight ?? 0.08) * 100}
+            onChange={(e) => onChange({ ...c, panelHeight: Number(e.target.value) / 100 })}
+            className="w-full accent-accent"
+          />
+        </Field>
+        <p className="text-[11px] text-gray-500">
+          All panels share one size — resizing a panel on the canvas also updates these. Add and
+          place panels, the junction box, the house box, and the grid connection in the Actions tab.
+          Nothing here is ever hidden or toggled; the diagram is always visible on the floorplan.
         </p>
       </div>
     );

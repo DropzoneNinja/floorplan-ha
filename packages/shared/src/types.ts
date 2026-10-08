@@ -66,7 +66,8 @@ export type HotspotType =
   | "rain_rate"
   | "powerpoint"
   | "music"
-  | "power";
+  | "power"
+  | "solar";
 
 export interface HotspotPosition {
   /** Normalized 0–1 (percentage of floorplan width) */
@@ -395,6 +396,57 @@ export interface PowerConfig {
   backgroundColor: string | null;
 }
 
+export interface SolarPanel {
+  /** Stable UUID used as React key */
+  id: string;
+  /** Label, e.g. "Roof — East" */
+  name: string;
+  /** HA sensor reporting this panel's current production (W or kW) */
+  entityId: string;
+  /** Normalized 0–1 horizontal position of the panel's top-left corner */
+  x: number;
+  /** Normalized 0–1 vertical position of the panel's top-left corner */
+  y: number;
+}
+
+export interface SolarJunctionBox {
+  /** Normalized 0–1 horizontal position */
+  x: number;
+  /** Normalized 0–1 vertical position */
+  y: number;
+}
+
+export interface SolarHouseBox {
+  /** Normalized 0–1 horizontal position */
+  x: number;
+  /** Normalized 0–1 vertical position */
+  y: number;
+}
+
+export interface SolarGridBox {
+  /** Normalized 0–1 horizontal position */
+  x: number;
+  /** Normalized 0–1 vertical position */
+  y: number;
+  /** HA sensor reporting net grid power in W: positive = importing, negative = exporting. Null until configured. */
+  entityId: string | null;
+}
+
+export interface SolarConfig {
+  /** Solar panels placed on the floorplan. Their watts are summed for the junction box total. */
+  panels: SolarPanel[];
+  /** Panel tile width, normalized 0–1 fraction of floorplan width. Shared by every panel. */
+  panelWidth: number;
+  /** Panel tile height, normalized 0–1 fraction of floorplan height. Shared by every panel. */
+  panelHeight: number;
+  /** Collects every panel's wire and shows the combined solar production. Null until placed. */
+  junctionBox: SolarJunctionBox | null;
+  /** Where the solar and grid wires meet; shows computed home consumption. Null until placed. */
+  houseBox: SolarHouseBox | null;
+  /** External grid connection; shows import/export watts. Null until placed. */
+  gridBox: SolarGridBox | null;
+}
+
 export type HotspotConfig =
   | ActionConfig
   | TextConfig
@@ -414,6 +466,7 @@ export type HotspotConfig =
   | PowerpointConfig
   | MusicConfig
   | PowerConfig
+  | SolarConfig
   | Record<string, unknown>;
 
 // ─── Service Calls ────────────────────────────────────────────────────────────

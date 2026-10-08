@@ -1,4 +1,4 @@
-import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig, PowerpointConfig, MusicConfig, PowerConfig } from "@floorplan-ha/shared";
+import type { HotspotType, WindroseConfig, ClockConfig, BurnOffConfig, RainRateConfig, PowerpointConfig, MusicConfig, PowerConfig, SolarConfig } from "@floorplan-ha/shared";
 import type { HotspotTypeDefinition } from "./types.ts";
 import { ActionHotspot } from "./renderers/ActionHotspot.tsx";
 import { TextHotspot } from "./renderers/TextHotspot.tsx";
@@ -20,6 +20,7 @@ import { RainRateHotspot } from "./renderers/RainRateHotspot.tsx";
 import { PowerpointHotspot } from "./renderers/PowerpointHotspot.tsx";
 import { MusicHotspot } from "./renderers/MusicHotspot.tsx";
 import { PowerHotspot } from "./renderers/PowerHotspot.tsx";
+import { SolarHotspot } from "./renderers/SolarHotspot.tsx";
 
 /**
  * Central registry of hotspot type definitions.
@@ -325,6 +326,22 @@ registerHotspotType({
     radius: 0.25,
     backgroundColor: null,
   } satisfies PowerConfig,
+});
+
+registerHotspotType({
+  type: "solar",
+  label: "Solar Energy",
+  description: "Place solar panels, a junction box, and a grid connection — always visible, showing live production, consumption, and import/export",
+  icon: "☀️",
+  Renderer: SolarHotspot,
+  defaultConfig: {
+    panels: [],
+    panelWidth: 0.05,
+    panelHeight: 0.08,
+    junctionBox: null,
+    houseBox: null,
+    gridBox: null,
+  } satisfies SolarConfig,
 });
 
 registerHotspotType({
