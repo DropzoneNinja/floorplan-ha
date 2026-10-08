@@ -10,6 +10,7 @@ import { HeatmapLegend } from "./HeatmapLayer.tsx";
 import { useHeatmapMask } from "./useHeatmapMask.ts";
 import { POWER_STOPS, fmtWatts, powerToColor, powerToRgb, readWatts } from "./power-utils.ts";
 import { PowerHistoryModal } from "./PowerHistoryModal.tsx";
+import { PowerAggregateHistoryModal } from "./PowerAggregateHistoryModal.tsx";
 
 /** Scales each sensor's configured heat radius when drawing the blooms. 0.5 = half the radius. */
 const BLOOM_RADIUS_SCALE = 0.5;
@@ -23,13 +24,16 @@ interface PowerOverlayLayerProps {
 }
 
 /**
- * Overlay shown when a power hotspot is tapped. Draws a heatmap radiating from
- * each placed power sensor, clipped to the interior mask, and a pin per sensor
- * with its live draw. Tapping a pin opens that sensor's usage history.
- * Clicking the floorplan dismisses the overlay.
+ * Overlay shown when a power hotspot is tapped. First click: draws a heatmap
+ * radiating from each placed power sensor, clipped to the interior mask, and a
+ * pin per sensor with its live draw; tapping a pin opens that sensor's usage
+ * history. Second click: replaces the heatmap with a combined usage graph
+ * across every sensor. Clicking the floorplan or closing the graph dismisses
+ * the overlay.
  */
 export function PowerOverlayLayer({ hotspots, maskAssetId, imageBounds = FULL_BOUNDS }: PowerOverlayLayerProps) {
   const visibleHotspotId = usePowerStore((s) => s.visibleHotspotId);
+  const mode = usePowerStore((s) => s.mode);
   const triggeredByZIndex = usePowerStore((s) => s.triggeredByZIndex);
   const hide = usePowerStore((s) => s.hide);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,10 +62,11 @@ export function PowerOverlayLayer({ hotspots, maskAssetId, imageBounds = FULL_BO
   const pointsKey = points.map((p) => `${p.x},${p.y},${p.radius},${p.value}`).join("|");
   const isShown = hotspot !== undefined;
 
-  // Forget the open sensor once the overlay is dismissed, so its history doesn't reopen on the next show.
+  // Forget the open sensor once the overlay is dismissed or leaves heatmap mode,
+  // so its history doesn't reopen on the next show.
   useEffect(() => {
-    if (!isShown) setOpenSensorId(null);
-  }, [isShown]);
+    if (!isShown || mode !== "heatmap") setOpenSensorId(null);
+  }, [isShown, mode]);
 
   // ── Redraw the heatmap whenever the sensors, their readings, or the mask change ──
   useEffect(() => {
@@ -81,47 +86,53 @@ export function PowerOverlayLayer({ hotspots, maskAssetId, imageBounds = FULL_BO
 
   return (
     <>
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ zIndex: triggeredByZIndex - 1 }}
-      >
+      {mode === "heatmap" && (
         <div
-          onClick={(e) => {
-            e.stopPropagation();
-            hide();
-            setOpenSensorId(null);
-          }}
-          style={{
-            position: "absolute",
-            left: `${imageBounds.x * 100}%`,
-            top: `${imageBounds.y * 100}%`,
-            width: `${imageBounds.width * 100}%`,
-            height: `${imageBounds.height * 100}%`,
-            pointerEvents: "auto",
-            cursor: "pointer",
-          }}
+          className="pointer-events-none absolute inset-0"
+          style={{ zIndex: triggeredByZIndex - 1 }}
         >
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_W}
-            height={CANVAS_H}
-            style={{ width: "100%", height: "100%", opacity: 0.8 }}
-          />
-
-          {sensors.map((sensor) => (
-            <SensorPin
-              key={sensor.id}
-              sensor={sensor}
-              watts={readWatts(states[sensor.entityId])}
-              onOpen={() => setOpenSensorId(sensor.id)}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              hide();
+              setOpenSensorId(null);
+            }}
+            style={{
+              position: "absolute",
+              left: `${imageBounds.x * 100}%`,
+              top: `${imageBounds.y * 100}%`,
+              width: `${imageBounds.width * 100}%`,
+              height: `${imageBounds.height * 100}%`,
+              pointerEvents: "auto",
+              cursor: "pointer",
+            }}
+          >
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_W}
+              height={CANVAS_H}
+              style={{ width: "100%", height: "100%", opacity: 0.8 }}
             />
-          ))}
 
-          <HeatmapLegend stops={POWER_STOPS} unitSuffix=" W" />
+            {sensors.map((sensor) => (
+              <SensorPin
+                key={sensor.id}
+                sensor={sensor}
+                watts={readWatts(states[sensor.entityId])}
+                onOpen={() => setOpenSensorId(sensor.id)}
+              />
+            ))}
+
+            <HeatmapLegend stops={POWER_STOPS} unitSuffix=" W" />
+          </div>
         </div>
-      </div>
+      )}
 
-      {openSensor && (
+      {mode === "aggregate" && (
+        <PowerAggregateHistoryModal sensors={sensors} states={states} onClose={hide} />
+      )}
+
+      {openSensor && mode === "heatmap" && (
         <PowerHistoryModal
           sensor={openSensor}
           unit={typeof openUnit === "string" ? openUnit : undefined}

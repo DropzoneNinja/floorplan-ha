@@ -14,8 +14,9 @@ import { fmtWatts, powerToColor, readWatts } from "../power-utils.ts";
  * and amber, to red at 2 kW and above), so the colour shows how much electricity
  * the home is using right now.
  *
- * Clicking the icon toggles a floorplan overlay (PowerOverlayLayer) with a heatmap
- * radiating from each sensor. Tapping a sensor there opens its usage history.
+ * Clicking the icon cycles a floorplan overlay (PowerOverlayLayer) through three
+ * states: a heatmap radiating from each sensor (tapping one opens its usage
+ * history), a combined usage graph for every sensor, then back to collapsed.
  */
 export function PowerHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
   const config = hotspot.configJson as unknown as PowerConfig;
@@ -28,7 +29,8 @@ export function PowerHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
     ),
   );
   const visibleHotspotId = usePowerStore((s) => s.visibleHotspotId);
-  const toggle = usePowerStore((s) => s.toggle);
+  const mode = usePowerStore((s) => s.mode);
+  const cycle = usePowerStore((s) => s.cycle);
 
   const isExpanded = visibleHotspotId === hotspot.id;
 
@@ -54,13 +56,19 @@ export function PowerHotspot({ hotspot, isEditMode }: HotspotRendererProps) {
   const handleClick = (e: React.MouseEvent) => {
     if (isEditMode) return;
     e.stopPropagation();
-    toggle(hotspot.id, hotspot.zIndex);
+    cycle(hotspot.id, hotspot.zIndex);
   };
+
+  const nextAction = !isExpanded
+    ? "show power sensors"
+    : mode === "heatmap"
+      ? "show combined usage graph"
+      : "hide power sensors";
 
   return (
     <button
       type="button"
-      aria-label={`${hotspot.name}: ${display} total — click to ${isExpanded ? "hide" : "show"} power sensors`}
+      aria-label={`${hotspot.name}: ${display} total — click to ${nextAction}`}
       disabled={isEditMode}
       onClick={handleClick}
       className={[
